@@ -2,7 +2,6 @@
 #define VISMUT_CORE_MEMORY_ARENA_H
 #include "../defines.h"
 #include "../types.h"
-#include <sys/cdefs.h>
 
 typedef struct ArenaBlock ArenaBlock;
 
