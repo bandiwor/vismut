@@ -82,7 +82,7 @@ static void PrintType(const ASTPrinter *ctx, const VismutType *type) {
     case VISMUT_TYPE_KIND_ARRAY:
         writechar('[');
         PrintType(ctx, type->array.element_type);
-        writef("; %ld]", type->array.size);
+        writef("; %u]", type->array.size);
         break;
     case VISMUT_TYPE_KIND_VECTOR:
         writechar('<');
