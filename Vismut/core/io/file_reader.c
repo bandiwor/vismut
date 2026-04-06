@@ -18,7 +18,7 @@ VismutErrorType FileReader_ReadText(const u8 *restrict filename, StringView *res
         return VismutErrorType_FromErrno(errno, VISMUT_ERROR_IO);
     }
 
-    const __off_t file_size = ftello(file);
+    const off_t file_size = ftello(file);
     if (unlikely(file_size < 0)) {
         fclose(file);
         return VismutErrorType_FromErrno(errno, VISMUT_ERROR_IO);
