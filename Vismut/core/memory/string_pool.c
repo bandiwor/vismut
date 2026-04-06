@@ -12,7 +12,7 @@ attribute_pure static u32 HashString(const StringView str) {
     return hash;
 }
 
-StringPool StringPool_Create() {
+StringPool StringPool_Create(void) {
     return (StringPool){0};
 }
 

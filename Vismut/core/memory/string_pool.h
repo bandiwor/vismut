@@ -19,7 +19,7 @@ typedef struct {
     u32 count;
 } StringPool;
 
-StringPool StringPool_Create();
+StringPool StringPool_Create(void);
 
 attribute_nonnull(1) VismutErrorType StringPool_Init(StringPool *pool, u32 capacity);
 
