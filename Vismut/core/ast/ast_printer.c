@@ -89,6 +89,19 @@ static void PrintType(const ASTPrinter *ctx, const VismutType *type) {
         PrintType(ctx, type->array.element_type);
         writechar('>');
         break;
+    case VISMUT_TYPE_KIND_TUPLE:
+        writechar('(');
+        if (type->tuple.fields_count > 0) {
+            for (const VismutType **current_type = type->tuple.fields;
+                 current_type < type->tuple.fields + type->tuple.fields_count; ++current_type) {
+                PrintType(ctx, *current_type);
+                if (current_type < type->tuple.fields + type->tuple.fields_count - 1) {
+                    write(", ");
+                }
+            }
+        }
+        writechar(')');
+        break;
     case VISMUT_TYPE_KIND_STRUCTURE:
         break;
     case VISMUT_TYPE_KIND_STRUCTURE_INSTANCE:
