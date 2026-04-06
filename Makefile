@@ -1,5 +1,5 @@
 CC = clang
-CFLAGS = -Wall -Wextra -pedantic # -flto
+CFLAGS = -Wall -Wextra -pedantic -flto
 LIBS = -lm
 
 # Базовое имя проекта
