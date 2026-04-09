@@ -121,16 +121,13 @@ ASTParser_ParseType(ASTParser *restrict parser, const VismutType *restrict *rest
         *out_type = parser->type_ctx->type_u64;
         return VISMUT_ERROR_OK;
     case VISMUT_TOKEN_F32_TYPE:
-        *out_type = parser->type_ctx->type_i8;
+        *out_type = parser->type_ctx->type_f32;
         return VISMUT_ERROR_OK;
     case VISMUT_TOKEN_F64_TYPE:
-        *out_type = parser->type_ctx->type_i8;
+        *out_type = parser->type_ctx->type_f64;
         return VISMUT_ERROR_OK;
     case VISMUT_TOKEN_STR_TYPE:
-        *out_type = parser->type_ctx->type_i8;
-        return VISMUT_ERROR_OK;
-    case VISMUT_TOKEN_VOID_TYPE:
-        *out_type = parser->type_ctx->type_void;
+        *out_type = parser->type_ctx->type_str;
         return VISMUT_ERROR_OK;
     case VISMUT_TOKEN_LANGLE: {
         const VismutType *vector_type;
@@ -175,8 +172,12 @@ ASTParser_ParseType(ASTParser *restrict parser, const VismutType *restrict *rest
             }
         }
         SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
-        if (ASTParser_Peek(parser).type != VISMUT_TOKEN_ARROW_RIGHT) {
-            return VISMUT_ERROR_INVALID_SYNTAX;
+        if (ASTParser_Peek(parser).type != VISMUT_TOKEN_ARROW_RIGHT) { // parse Tuple
+            if (types_count == 0) {
+                *out_type = parser->type_ctx->type_unit;
+                return VISMUT_ERROR_OK;
+            }
+            return VismutTypeContext_GetTuple(parser->type_ctx, types, types_count, out_type);
         }
         SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
         const VismutType *return_type;
@@ -263,10 +264,10 @@ attribute_nodiscard static VismutErrorType ASTParser_ParseCondition(ASTParser *r
     }
 
     const VismutType *node_type =
-        ASTParser_NodeAt(parser, then)->expression.type == parser->type_ctx->type_void ||
+        ASTParser_NodeAt(parser, then)->expression.type == parser->type_ctx->type_unit ||
                 ASTNodeIdx_IsNone(else_) ||
-                ASTParser_NodeAt(parser, else_)->expression.type == parser->type_ctx->type_void
-            ? parser->type_ctx->type_void
+                ASTParser_NodeAt(parser, else_)->expression.type == parser->type_ctx->type_unit
+            ? parser->type_ctx->type_unit
             : parser->type_ctx->type_auto;
 
     return ASTParser_PushNode(
@@ -357,17 +358,62 @@ attribute_nodiscard static VismutErrorType ASTParser_ParseLiteral(ASTParser *res
 attribute_nodiscard static VismutErrorType ASTParser_ParseBinary(ASTParser *restrict parser,
                                                                  ASTNodeIdx *restrict out_idx);
 
+attribute_nodiscard static VismutErrorType ASTParser_ParseTuple(ASTParser *restrict parser,
+                                                                ASTNodeIdx *restrict out_idx,
+                                                                const ASTNodeIdx first_field,
+                                                                const Position pos) {
+    ASTNodeIdx fields[256] = {[0] = first_field};
+    const u32 max_fields_count = COUNTOF(fields);
+    u32 fields_count = 1;
+
+    VismutErrorType err;
+    while (ASTParser_Peek(parser).type != VISMUT_TOKEN_RPAREN) {
+        if (fields_count >= max_fields_count) {
+            return VISMUT_ERROR_TOO_MANY_FUNCTION_ARGUMENTS;
+        }
+        ASTNodeIdx field;
+        SAFE_RISKY_EXPRESSION(ASTParser_ParseBinary(parser, &field), err);
+        fields[fields_count++] = field;
+        if (ASTParser_Peek(parser).type == VISMUT_TOKEN_COMMA) {
+            SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
+        }
+    }
+    SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
+
+    ASTNodeIdx *heap_fields = Arena_Array(parser->builder->arena, ASTNodeIdx, fields_count);
+    __builtin_memcpy(heap_fields, fields, fields_count * sizeof(ASTNodeIdx));
+
+    return ASTParser_PushNode(
+        parser, ASTNode_CreateTuple(pos, heap_fields, fields_count, parser->type_ctx->type_auto),
+        out_idx);
+}
+
 attribute_nodiscard static VismutErrorType
 ASTParser_ParseParenthesizedExpression(ASTParser *restrict parser, ASTNodeIdx *restrict out_idx) {
     VismutErrorType err;
+    const Position pos = ASTParser_Peek(parser).position;
     // skip '('
     SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
+    if (ASTParser_Peek(parser).type == VISMUT_TOKEN_COMMA) {
+        SAFE_RISKY_EXPRESSION(ASTParser_NextTokenExcept(parser, VISMUT_TOKEN_RPAREN), err);
+        SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
+        return ASTParser_PushNode(parser, ASTNode_CreateUnit(pos), out_idx);
+    }
 
     // parse (...)
-    SAFE_RISKY_EXPRESSION(ASTParser_ParseBinary(parser, out_idx), err);
+    ASTNodeIdx binary_idx;
+    SAFE_RISKY_EXPRESSION(ASTParser_ParseBinary(parser, &binary_idx), err);
+    if (ASTParser_Peek(parser).type == VISMUT_TOKEN_COMMA) {
+        SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
+        return ASTParser_ParseTuple(parser, out_idx, binary_idx, pos);
+    }
 
-    // skip ')'
-    return ASTParser_NextTokenExcept(parser, VISMUT_TOKEN_RPAREN);
+    *out_idx = binary_idx;
+    if (ASTParser_Peek(parser).type != VISMUT_TOKEN_RPAREN) {
+        return VISMUT_ERROR_INVALID_SYNTAX;
+    }
+
+    return ASTParser_Next(parser);
 }
 
 attribute_nodiscard static VismutErrorType
@@ -610,7 +656,7 @@ attribute_nodiscard static VismutErrorType ASTParser_ParseBlock(ASTParser *restr
         last_expression = current_expression;
 
         if (unlikely(ASTParser_NodeAt(parser, current_expression)->expression.type !=
-                     parser->type_ctx->type_void)) {
+                     parser->type_ctx->type_unit)) {
             is_void_type_block = 0;
             break;
         }
@@ -623,7 +669,7 @@ attribute_nodiscard static VismutErrorType ASTParser_ParseBlock(ASTParser *restr
     SAFE_RISKY_EXPRESSION(
         ASTParser_PushNode(parser,
                            ASTNode_CreateBlock(pos, first_expression,
-                                               is_void_type_block ? parser->type_ctx->type_void
+                                               is_void_type_block ? parser->type_ctx->type_unit
                                                                   : parser->type_ctx->type_auto),
                            out_idx),
         err);
@@ -645,13 +691,13 @@ attribute_nodiscard static VismutErrorType ASTParser_ParseExpression(ASTParser *
         break;
     case VISMUT_TOKEN_CONDITION_STATEMENT:
         err = ASTParser_ParseCondition(parser, &node_idx);
-        if (ASTParser_NodeAt(parser, node_idx)->condition.type == parser->type_ctx->type_void) {
+        if (ASTParser_NodeAt(parser, node_idx)->condition.type == parser->type_ctx->type_unit) {
             is_expression_void_type = 1;
         }
         break;
     case VISMUT_TOKEN_LBRACE:
         err = ASTParser_ParseBlock(parser, &node_idx);
-        if (ASTParser_NodeAt(parser, node_idx)->block.type == parser->type_ctx->type_void) {
+        if (ASTParser_NodeAt(parser, node_idx)->block.type == parser->type_ctx->type_unit) {
             is_expression_void_type = 1;
         }
         break;
@@ -668,7 +714,7 @@ attribute_nodiscard static VismutErrorType ASTParser_ParseExpression(ASTParser *
         ASTParser_PushNode(parser,
                            ASTNode_CreateExpression(ASTParser_NodeAt(parser, node_idx)->pos,
                                                     is_expression_void_type
-                                                        ? parser->type_ctx->type_void
+                                                        ? parser->type_ctx->type_unit
                                                         : parser->type_ctx->type_auto,
                                                     node_idx),
                            out_idx),
@@ -693,12 +739,12 @@ attribute_nodiscard static VismutErrorType ASTParser_ParseStatement(ASTParser *r
         SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
         is_void_type_expression = 1;
     }
-    if (ASTParser_NodeAt(parser, idx)->expression.type == parser->type_ctx->type_void) {
+    if (ASTParser_NodeAt(parser, idx)->expression.type == parser->type_ctx->type_unit) {
         is_void_type_expression = 1;
     }
 
     ASTParser_NodeAt(parser, idx)->expression.type =
-        is_void_type_expression ? parser->type_ctx->type_void : parser->type_ctx->type_auto;
+        is_void_type_expression ? parser->type_ctx->type_unit : parser->type_ctx->type_auto;
 
     *out_idx = idx;
 
