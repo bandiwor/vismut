@@ -106,6 +106,6 @@ attribute_pure const VismutType *VismutTypeTokenToType(const VismutTokenType typ
         return ctx->type_f64;
     default:
         assert(0 && "Unreachable!");
-        return ctx->type_void;
+        return ctx->type_unit;
     }
 }

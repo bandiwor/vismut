@@ -17,7 +17,6 @@
     X(VISMUT_TOKEN_F32_TYPE, "f32")                                                                \
     X(VISMUT_TOKEN_F64_TYPE, "f64")                                                                \
     X(VISMUT_TOKEN_STR_TYPE, "str")                                                                \
-    X(VISMUT_TOKEN_VOID_TYPE, "void")                                                              \
     X(VISMUT_TOKEN_IDENTIFIER, "<identifier>")                                                     \
     X(VISMUT_TOKEN_NAME_DECLARATION, "$")                                                          \
     X(VISMUT_TOKEN_CONDITION_STATEMENT, "#")                                                       \

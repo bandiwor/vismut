@@ -57,7 +57,7 @@ static void PrintType(const ASTPrinter *ctx, const VismutType *type) {
     const VismutTypeKind kind = type->kind;
     const u8 *type_kind_str = VismutTypeKind_String(kind);
     switch (kind) {
-    case VISMUT_TYPE_KIND_VOID:
+    case VISMUT_TYPE_KIND_UNIT:
     case VISMUT_TYPE_KIND_AUTO:
     case VISMUT_TYPE_KIND_I1:
     case VISMUT_TYPE_KIND_I8:
@@ -295,6 +295,22 @@ static void PrintNode(const ASTPrinter *ctx, const ASTNodeIdx idx, const unsigne
         }
         write(")\n");
         break;
+    case VISMUT_AST_TUPLE:
+        PrintType(ctx, node_curr().tuple.type);
+        write(space "(");
+        if (node_curr().tuple.fields_count > 0) {
+            writechar('\n');
+        }
+        for (ASTNodeIdx *field = node_curr().tuple.fields;
+             field < node_curr().tuple.fields + node_curr().tuple.fields_count; ++field) {
+            PrintNode(ctx, *field, indent + 1);
+        }
+        if (node_curr().tuple.fields_count > 0) {
+            write(get_indent(indent));
+        }
+        write(")\n");
+        break;
+    case VISMUT_AST_UNIT:
     case VISMUT_AST_UNKNOWN:
         writechar('\n');
         break;
