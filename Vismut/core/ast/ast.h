@@ -17,6 +17,8 @@
     X(VISMUT_AST_CONDITION, "condition")                                                           \
     X(VISMUT_AST_BLOCK, "block")                                                                   \
     X(VISMUT_AST_FN_CALL, "fn-call")                                                               \
+    X(VISMUT_AST_UNIT, "unit")                                                                     \
+    X(VISMUT_AST_TUPLE, "tuple")                                                                   \
     X(VISMUT_AST_UNKNOWN, "unknown")
 
 #define X_VISMUT_AST_BINARY_NODES(X)                                                               \
@@ -156,6 +158,13 @@ typedef struct {
             ASTNodeIdx init;
             int is_mutable;
         } var_declaration;
+
+        struct {
+            u32 fields_count;
+            ASTNodeIdx *fields;
+            VismutSimpleValue *values;
+            const VismutType *type;
+        } tuple;
     };
 } attribute_aligned(16) ASTNode;
 
@@ -165,6 +174,11 @@ ASTNode ASTNode_CreateModule(StringNode *name, ASTNodeIdx first_expression,
 ASTNode ASTNode_CreateExpression(Position pos, const VismutType *type, ASTNodeIdx expr);
 
 ASTNode ASTNode_CreateLiteral(Position pos, const VismutType *type, VismutSimpleValue value);
+
+ASTNode ASTNode_CreateTuple(Position pos, ASTNodeIdx *fields, u32 fields_count,
+                            const VismutType *type);
+
+ASTNode ASTNode_CreateUnit(Position pos);
 
 ASTNode ASTNode_CreateIdentifier(Position pos, const VismutType *type, StringNode *name);
 

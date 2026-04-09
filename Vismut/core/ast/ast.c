@@ -1,4 +1,5 @@
 #include "ast.h"
+#include <assert.h>
 
 attribute_const const u8 *ASTNodeType_String(const ASTNodeType type) {
 #define X(name, text) [name] = (const u8 *)text,
@@ -183,5 +184,27 @@ ASTNode ASTNode_CreateBlock(const Position pos, const ASTNodeIdx first_expressio
                 .type = type,
                 .scope = NULL,
             },
+    };
+}
+
+ASTNode ASTNode_CreateTuple(const Position pos, ASTNodeIdx *fields, const u32 fields_count,
+                            const VismutType *type) {
+    assert(fields_count > 0);
+    return (ASTNode){
+        .type = VISMUT_AST_TUPLE,
+        .pos = pos,
+        .tuple =
+            {
+                .fields_count = fields_count,
+                .fields = fields,
+                .type = type,
+            },
+    };
+}
+
+ASTNode ASTNode_CreateUnit(const Position pos) {
+    return (ASTNode){
+        .type = VISMUT_AST_UNIT,
+        .pos = pos,
     };
 }

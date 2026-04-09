@@ -6,7 +6,7 @@
 #include "../types.h"
 
 #define X_VISMUT_TYPE_KIND(X)                                                                      \
-    X(VISMUT_TYPE_KIND_VOID, "void")                                                               \
+    X(VISMUT_TYPE_KIND_UNIT, "unit")                                                               \
     X(VISMUT_TYPE_KIND_AUTO, "auto")                                                               \
     X(VISMUT_TYPE_KIND_I1, "i1")                                                                   \
     X(VISMUT_TYPE_KIND_I8, "i8")                                                                   \
@@ -91,7 +91,7 @@ typedef struct {
     u32 capacity;
 
     // pre-allocated types
-    const VismutType *type_void;
+    const VismutType *type_unit;
     const VismutType *type_auto;
     const VismutType *type_i1;
     const VismutType *type_i8;

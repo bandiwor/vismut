@@ -1,4 +1,5 @@
 #include "value.h"
+#include <assert.h>
 
 const u8 *VismutTypeKind_String(const VismutTypeKind type) {
 #define X(name, text) [name] = (const u8 *)text,
@@ -88,7 +89,7 @@ attribute_nonnull(1) attribute_nodiscard VismutErrorType
 
     __builtin_memset(ctx->buckets, 0, table_capacity * sizeof(VismutTypeNode *));
 
-    ctx->type_void = Internal_AllocPrimitive(ctx, VISMUT_TYPE_KIND_VOID);
+    ctx->type_unit = Internal_AllocPrimitive(ctx, VISMUT_TYPE_KIND_UNIT);
     ctx->type_auto = Internal_AllocPrimitive(ctx, VISMUT_TYPE_KIND_AUTO);
     ctx->type_i1 = Internal_AllocPrimitive(ctx, VISMUT_TYPE_KIND_I1);
     ctx->type_i8 = Internal_AllocPrimitive(ctx, VISMUT_TYPE_KIND_I8);
@@ -306,6 +307,7 @@ attribute_nonnull(1) attribute_nodiscard VismutErrorType
     VismutTypeContext_GetTuple(VismutTypeContext *restrict ctx,
                                const VismutType *restrict *restrict fields, const u32 fields_count,
                                const VismutType *restrict *restrict out_type) {
+    assert(fields_count > 0);
     u32 hash = 2166136261u;
 
     hash ^= (u32)VISMUT_TYPE_KIND_TUPLE;
