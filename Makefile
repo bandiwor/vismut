@@ -21,13 +21,13 @@ RELEASE_OBJS = $(SRCS:%.c=$(RELEASE_DIR)/%.o)
 # --- Release Build ---
 all: $(RELEASE_DIR)/$(TARGET_NAME)
 
-$(RELEASE_DIR)/$(TARGET_NAME): CFLAGS += -O3 -march=native
+$(RELEASE_DIR)/$(TARGET_NAME): CFLAGS += -Oz -march=native
 $(RELEASE_DIR)/$(TARGET_NAME): $(RELEASE_OBJS)
 	$(CC) $(RELEASE_OBJS) $(CFLAGS) -o $@ $(LIBS)
 
 $(RELEASE_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -O3 -march=native -c $< -o $@
+	$(CC) $(CFLAGS) -DNDEBUG -Oz -march=native -c $< -o $@
 
 # --- Debug Build ---
 debug: $(DEBUG_DIR)/$(TARGET_NAME)-debug
