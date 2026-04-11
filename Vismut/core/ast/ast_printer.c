@@ -187,6 +187,46 @@ static void PrintLiteral(const ASTPrinter *ctx, const VismutType *type,
     }
 }
 
+static void PrintFunctionParams(const ASTPrinter *restrict ctx,
+                                const VismutType **restrict types_begin,
+                                StringNode **restrict names_begin, const u32 length) {
+    writechar('(');
+    const VismutType **types_end = types_begin + length;
+    const VismutType **types_prev_end = types_end - 1;
+
+    const VismutType **types_current = types_begin;
+    StringNode *const *names_current = names_begin;
+    for (; types_current < types_end; ++types_current, ++names_current) {
+        const StringNode *current_name = *names_current;
+        writef(str_fmt ": ", str_2fmt(current_name));
+        PrintType(ctx, *types_current);
+        if (types_current < types_prev_end) {
+            write(", ");
+        }
+    }
+    writechar(')');
+}
+
+static void PrintNode(const ASTPrinter *ctx, const ASTNodeIdx idx, const unsigned int indent);
+
+static void PrintNodesList(const ASTPrinter *restrict ctx, const ASTNodeIdx *restrict begin,
+                           const u32 length, const u32 indent) {
+    writechar('(');
+    if (length > 0) {
+        writechar('\n');
+    }
+
+    const ASTNodeIdx *end = begin + length;
+    for (const ASTNodeIdx *current = begin; current < end; ++current) {
+        PrintNode(ctx, *current, indent + 1);
+    }
+
+    if (length > 0) {
+        write(get_indent(indent));
+    }
+    write(")\n");
+}
+
 static void PrintNode(const ASTPrinter *ctx, const ASTNodeIdx idx, const unsigned int indent) {
     write(get_indent(indent));
     write(node_t_str(idx));
@@ -232,10 +272,10 @@ static void PrintNode(const ASTPrinter *ctx, const ASTNodeIdx idx, const unsigne
         PrintType(ctx, node_curr().binary.type);
         writechar('\n');
         write(get_indent(indent));
-        write("|> left\n");
+        write("|>\n");
         PrintNode(ctx, node_curr().binary.left, indent + 1);
         write(get_indent(indent));
-        write("|> right\n");
+        write("|>\n");
         PrintNode(ctx, node_curr().binary.right, indent + 1);
         break;
     case VISMUT_AST_UNARY:
@@ -244,7 +284,7 @@ static void PrintNode(const ASTPrinter *ctx, const ASTNodeIdx idx, const unsigne
         PrintType(ctx, node_curr().unary.type);
         writechar('\n');
         write(get_indent(indent));
-        write("|> right\n");
+        write("|>\n");
         PrintNode(ctx, node_curr().unary.right, indent + 1);
         break;
     case VISMUT_AST_TYPE_CAST:
@@ -259,11 +299,11 @@ static void PrintNode(const ASTPrinter *ctx, const ASTNodeIdx idx, const unsigne
         writechar('\n');
         PrintNode(ctx, node_curr().condition.condition, indent);
         write(get_indent(indent));
-        write("|> then\n");
+        write("|>\n");
         PrintNode(ctx, node_curr().condition.then, indent + 1);
         if (node_curr().condition.else_ != ASTNodeIdx_None) {
             write(get_indent(indent));
-            write("|> else\n");
+            write("<|\n");
             PrintNode(ctx, node_curr().condition.else_, indent + 1);
         }
         break;
@@ -277,38 +317,29 @@ static void PrintNode(const ASTPrinter *ctx, const ASTNodeIdx idx, const unsigne
         }
     } break;
     case VISMUT_AST_FN_CALL:
-        if (node_curr().fn_call.fn_signature != NULL) {
-            PrintType(ctx, node_curr().fn_call.fn_signature->function.return_type);
-        } else {
-            write("<no signature>");
-        }
-        writef(space str_fmt "(", str_2fmt(node_curr().fn_call.name));
-        if (node_curr().fn_call.arguments_count > 0) {
-            writechar('\n');
-        }
-        for (ASTNodeIdx *arg = node_curr().fn_call.arguments;
-             arg < node_curr().fn_call.arguments + node_curr().fn_call.arguments_count; ++arg) {
-            PrintNode(ctx, *arg, indent + 1);
-        }
-        if (node_curr().fn_call.arguments_count > 0) {
-            write(get_indent(indent));
-        }
-        write(")\n");
+        PrintType(ctx, node_curr().fn_call.fn_signature->function.return_type);
+        writef(space str_fmt, str_2fmt(node_curr().fn_call.name));
+        PrintNodesList(ctx, node_curr().fn_call.arguments, node_curr().fn_call.arguments_count,
+                       indent);
+        break;
+    case VISMUT_AST_FN_DECLARATION:
+        writef(str_fmt, str_2fmt(node_curr().fn_declaration.name));
+        PrintFunctionParams(ctx, node_curr().fn_declaration.signature->function.param_types,
+                            node_curr().fn_declaration.param_names,
+                            node_curr().fn_declaration.signature->function.param_count);
+        write(" -> ");
+        PrintType(ctx, node_curr().fn_declaration.signature->function.return_type);
+        writechar('\n');
+        PrintNode(ctx, node_curr().fn_declaration.body, indent + 1);
         break;
     case VISMUT_AST_TUPLE:
         PrintType(ctx, node_curr().tuple.type);
-        write(space "(");
-        if (node_curr().tuple.fields_count > 0) {
-            writechar('\n');
-        }
-        for (ASTNodeIdx *field = node_curr().tuple.fields;
-             field < node_curr().tuple.fields + node_curr().tuple.fields_count; ++field) {
-            PrintNode(ctx, *field, indent + 1);
-        }
-        if (node_curr().tuple.fields_count > 0) {
-            write(get_indent(indent));
-        }
-        write(")\n");
+        writechar(' ');
+        PrintNodesList(ctx, node_curr().tuple.fields, node_curr().tuple.fields_count, indent);
+        break;
+    case VISMUT_AST_RETURN:
+        writechar('\n');
+        PrintNode(ctx, node_curr().ret.expression, indent + 1);
         break;
     case VISMUT_AST_UNIT:
     case VISMUT_AST_UNKNOWN:
