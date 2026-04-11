@@ -404,7 +404,7 @@ attribute_noinline attribute_nonnull(1, 2) attribute_nodiscard static VismutErro
             type = VISMUT_TOKEN_PRINT_STATEMENT;
             break;
         default:
-            type = VISMUT_TOKEN_SEMICOLON;
+            type = VISMUT_TOKEN_COLON;
             width = 1;
             break;
         }
@@ -619,22 +619,6 @@ attribute_pure attribute_nonnull(1) attribute_nodiscard static VismutTokenType
 #undef PACK_TOKEN2
 }
 
-attribute_pure attribute_nonnull(1) attribute_nodiscard static VismutTokenType
-    Tokenizer_ParseKeyword4(const u8 buffer[static 4]) {
-#define PACK_TOKEN4(a, b, c, d) ((u32)(a) | ((u32)(b) << 8) | ((u32)(c) << 16) | ((u32)(c)) << 24)
-    u32 token_from_buffer = 0;
-    Vismut_MemoryCopy((void *)&token_from_buffer, buffer, 4);
-
-    switch (token_from_buffer) {
-    case PACK_TOKEN4('v', 'o', 'i', 'd'):
-        return VISMUT_TOKEN_VOID_TYPE;
-    default:
-        return VISMUT_TOKEN_UNKNOWN;
-    }
-
-#undef PACK_TOKEN3
-}
-
 attribute_nonnull(1, 2) attribute_nodiscard static VismutErrorType
     Tokenizer_ParseIdentifier(VismutTokenizer *restrict tokenizer,
                               VismutToken *restrict out_token) {
@@ -647,13 +631,6 @@ attribute_nonnull(1, 2) attribute_nodiscard static VismutErrorType
     tokenizer->cursor = cur;
 
     VismutTokenType keyword = VISMUT_TOKEN_UNKNOWN;
-    if (length == 4 && (keyword = Tokenizer_ParseKeyword4(token_start)) != VISMUT_TOKEN_UNKNOWN) {
-        *out_token = (VismutToken){
-            .type = keyword,
-            .position = (Position){.offset = token_start - tokenizer->start, .length = length},
-        };
-        return VISMUT_ERROR_OK;
-    }
     if (length == 3 && (keyword = Tokenizer_ParseKeyword3(token_start)) != VISMUT_TOKEN_UNKNOWN) {
         *out_token = (VismutToken){
             .type = keyword,

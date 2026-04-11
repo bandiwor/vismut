@@ -208,3 +208,28 @@ ASTNode ASTNode_CreateUnit(const Position pos) {
         .pos = pos,
     };
 }
+
+ASTNode ASTNode_CreateFnDeclaration(const Position pos, StringNode *restrict name,
+                                    const VismutType *restrict signature,
+                                    StringNode **restrict param_names, const ASTNodeIdx body) {
+    return (ASTNode){
+        .type = VISMUT_AST_FN_DECLARATION,
+        .pos = pos,
+        .fn_declaration =
+            {
+                .name = name,
+                .signature = signature,
+                .param_names = param_names,
+                .scope = NULL,
+                .body = body,
+            },
+    };
+}
+
+ASTNode ASTNode_CreateReturn(const Position pos, const ASTNodeIdx expression) {
+    return (ASTNode){.type = VISMUT_AST_RETURN,
+                     .pos = pos,
+                     .ret = {
+                         .expression = expression,
+                     }};
+}

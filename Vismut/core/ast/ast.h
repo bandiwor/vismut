@@ -16,9 +16,11 @@
     X(VISMUT_AST_TYPE_CAST, "type-cast")                                                           \
     X(VISMUT_AST_CONDITION, "condition")                                                           \
     X(VISMUT_AST_BLOCK, "block")                                                                   \
+    X(VISMUT_AST_FN_DECLARATION, "fn-decl")                                                        \
     X(VISMUT_AST_FN_CALL, "fn-call")                                                               \
     X(VISMUT_AST_UNIT, "unit")                                                                     \
     X(VISMUT_AST_TUPLE, "tuple")                                                                   \
+    X(VISMUT_AST_RETURN, "ret")                                                                    \
     X(VISMUT_AST_UNKNOWN, "unknown")
 
 #define X_VISMUT_AST_BINARY_NODES(X)                                                               \
@@ -134,9 +136,10 @@ typedef struct {
 
         struct {
             StringNode *name;
+            StringNode **param_names;
             VismutScope *scope;
             const VismutType *signature;
-            ASTNodeIdx body_or_expression;
+            ASTNodeIdx body;
         } fn_declaration;
 
         struct {
@@ -165,6 +168,10 @@ typedef struct {
             VismutSimpleValue *values;
             const VismutType *type;
         } tuple;
+
+        struct {
+            ASTNodeIdx expression;
+        } ret;
     };
 } attribute_aligned(16) ASTNode;
 
@@ -202,6 +209,12 @@ ASTNode ASTNode_CreateVarDeclaration(Position pos, StringNode *name, const Vismu
                                      ASTNodeIdx init, int is_mutable);
 
 ASTNode ASTNode_CreateBlock(Position pos, ASTNodeIdx first_expression, const VismutType *type);
+
+ASTNode ASTNode_CreateFnDeclaration(Position pos, StringNode *restrict name,
+                                    const VismutType *restrict signature,
+                                    StringNode **restrict param_names, ASTNodeIdx body);
+
+ASTNode ASTNode_CreateReturn(Position pos, ASTNodeIdx expression);
 
 #define ASTNodeIdx_None (-1)
 #define ASTNodeIdx_IsNone(node_idx) (ASTNodeIdx_None == (node_idx))

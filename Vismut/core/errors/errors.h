@@ -27,6 +27,7 @@
     X(VISMUT_ERROR_INVALID_SYNTAX, "Invalid syntax.")                                              \
     X(VISMUT_ERROR_STRING_TOO_LONG, "String too long.")                                            \
     X(VISMUT_ERROR_PARSING_ARGS, "Invalid args.")                                                  \
+    X(VISMUT_ERROR_RETURN_OUTSIDE_FUNCTION, "Return outside a function not allowed")               \
     X(VISMUT_ERROR_TOO_MANY_FUNCTION_ARGUMENTS, "Too many function arguments.")
 
 typedef enum {

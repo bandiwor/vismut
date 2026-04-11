@@ -15,6 +15,10 @@ ASTParser ASTParser_Create(ASTBuilder *restrict builder, StringPool *restrict st
         .current_token = {0},
         .string_pool = string_pool,
         .type_ctx = type_ctx,
+        .ctx =
+            {
+                .is_in_function_declaration = 0,
+            },
     };
 }
 
@@ -157,7 +161,7 @@ ASTParser_ParseType(ASTParser *restrict parser, const VismutType *restrict *rest
                                           out_type);
     }
     case VISMUT_TOKEN_LPAREN: { // (t1, ...) -> r
-        const VismutType *types[256];
+        const VismutType *types[16];
         u32 types_count = 0;
         const u32 max_types_count = COUNTOF(types);
         while (ASTParser_Peek(parser).type != VISMUT_TOKEN_RPAREN) {
@@ -192,6 +196,126 @@ ASTParser_ParseType(ASTParser *restrict parser, const VismutType *restrict *rest
     }
 }
 
+attribute_nodiscard static VismutErrorType ASTParser_ParseBlock(ASTParser *restrict parser,
+                                                                ASTNodeIdx *restrict out_idx) {
+    const Position pos = ASTParser_Peek(parser).position;
+
+    VismutErrorType err;
+    SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
+
+    ASTNodeIdx first_expression = ASTNodeIdx_None;
+    ASTNodeIdx last_expression = ASTNodeIdx_None;
+
+    int is_void_type_block = 1;
+    while (ASTParser_Peek(parser).type != VISMUT_TOKEN_RBRACE) {
+        if (ASTParser_Peek(parser).type == VISMUT_TOKEN_EOF) {
+            break;
+        }
+
+        ASTNodeIdx current_expression;
+        SAFE_RISKY_EXPRESSION(ASTParser_ParseStatement(parser, &current_expression), err);
+
+        if (ASTNodeIdx_IsNone(first_expression)) {
+            first_expression = current_expression;
+        } else {
+            ASTBuilder_LinkNodes(parser->builder, last_expression, current_expression);
+        }
+
+        last_expression = current_expression;
+
+        if (unlikely(ASTParser_NodeAt(parser, current_expression)->expression.type !=
+                     parser->type_ctx->type_unit)) {
+            is_void_type_block = 0;
+            break;
+        }
+    }
+    if (unlikely(ASTParser_Peek(parser).type != VISMUT_TOKEN_RBRACE)) {
+        return VISMUT_ERROR_INVALID_SYNTAX;
+    }
+    SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
+
+    SAFE_RISKY_EXPRESSION(
+        ASTParser_PushNode(parser,
+                           ASTNode_CreateBlock(pos, first_expression,
+                                               is_void_type_block ? parser->type_ctx->type_unit
+                                                                  : parser->type_ctx->type_auto),
+                           out_idx),
+        err);
+
+    return VISMUT_ERROR_OK;
+}
+
+attribute_nodiscard static VismutErrorType
+ASTParser_ParseFunctionDeclaration(ASTParser *restrict parser, ASTNodeIdx *restrict out_idx,
+                                   const Position pos, StringNode *name) {
+    VismutErrorType err;
+    // skip '('
+    SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
+
+    const VismutType *param_types[16];
+    const u32 max_params_count = COUNTOF(param_types);
+    StringNode *param_names[max_params_count];
+    u32 params_count = 0;
+
+    while (ASTParser_Peek(parser).type != VISMUT_TOKEN_RPAREN) {
+        if (params_count >= max_params_count) {
+            return VISMUT_ERROR_TOO_MANY_FUNCTION_ARGUMENTS;
+        }
+        if (ASTParser_Peek(parser).type != VISMUT_TOKEN_IDENTIFIER) {
+            return VISMUT_ERROR_INVALID_SYNTAX;
+        }
+        StringNode *param_name;
+        SAFE_RISKY_EXPRESSION(
+            StringPool_Intern(parser->string_pool, ASTParser_Peek(parser).data.str, &param_name),
+            err);
+        SAFE_RISKY_EXPRESSION(ASTParser_NextTokenExcept(parser, VISMUT_TOKEN_COLON), err);
+        SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
+        const VismutType *param_type;
+        SAFE_RISKY_EXPRESSION(ASTParser_ParseType(parser, &param_type), err);
+
+        param_names[params_count] = param_name;
+        param_types[params_count] = param_type;
+
+        if (ASTParser_Peek(parser).type == VISMUT_TOKEN_COMMA) {
+            SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
+        }
+    }
+    SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
+
+    const VismutType *return_type = parser->type_ctx->type_unit;
+    if (ASTParser_Peek(parser).type == VISMUT_TOKEN_ARROW_RIGHT) {
+        SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
+        SAFE_RISKY_EXPRESSION(ASTParser_ParseType(parser, &return_type), err);
+    }
+
+    StringNode **heap_param_names = NULL;
+    if (params_count > 0) {
+        heap_param_names = Arena_Array(parser->builder->arena, StringNode *, params_count);
+        if (heap_param_names == NULL) {
+            return VISMUT_ERROR_OUT_OF_MEMORY;
+        }
+        __builtin_memcpy(heap_param_names, param_names, sizeof(StringNode *) * params_count);
+    }
+
+    const VismutType *signature;
+    SAFE_RISKY_EXPRESSION(VismutTypeContext_GetFunction(parser->type_ctx, return_type, param_types,
+                                                        params_count, &signature),
+                          err);
+
+    if (ASTParser_Peek(parser).type != VISMUT_TOKEN_LBRACE) {
+        return VISMUT_ERROR_INVALID_SYNTAX;
+    }
+
+    parser->ctx.is_in_function_declaration = 1;
+    ASTNodeIdx body_idx;
+    SAFE_RISKY_EXPRESSION(ASTParser_ParseBlock(parser, &body_idx), err);
+    parser->ctx.is_in_function_declaration = 0;
+
+    return ASTParser_PushNode(
+        parser, ASTNode_CreateFnDeclaration(pos, name, signature, heap_param_names, body_idx),
+        out_idx);
+}
+
 attribute_nodiscard static VismutErrorType
 ASTParser_ParseNameDeclaration(ASTParser *restrict parser, ASTNodeIdx *restrict out_idx) {
     const Position pos = ASTParser_Peek(parser).position;
@@ -206,6 +330,9 @@ ASTParser_ParseNameDeclaration(ASTParser *restrict parser, ASTNodeIdx *restrict 
     SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
 
     int is_mutable = 0;
+    if (ASTParser_Peek(parser).type == VISMUT_TOKEN_LPAREN) {
+        return ASTParser_ParseFunctionDeclaration(parser, out_idx, pos, name);
+    }
     if (ASTParser_Peek(parser).type == VISMUT_TOKEN_EXCLAMATION_MARK) {
         is_mutable = 1;
         SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
@@ -362,7 +489,7 @@ attribute_nodiscard static VismutErrorType ASTParser_ParseTuple(ASTParser *restr
                                                                 ASTNodeIdx *restrict out_idx,
                                                                 const ASTNodeIdx first_field,
                                                                 const Position pos) {
-    ASTNodeIdx fields[256] = {[0] = first_field};
+    ASTNodeIdx fields[16] = {[0] = first_field};
     const u32 max_fields_count = COUNTOF(fields);
     u32 fields_count = 1;
 
@@ -421,7 +548,7 @@ ASTParser_ParseFunctionArguments(ASTParser *restrict parser,
                                  ASTNodeIdx *restrict *restrict out_arguments,
                                  u64 *restrict out_arguments_count) {
     VismutErrorType err;
-    ASTNodeIdx arguments[256];
+    ASTNodeIdx arguments[16];
     const u64 max_arguments_count = COUNTOF(arguments);
     u64 arguments_count = 0;
 
@@ -470,8 +597,10 @@ attribute_nodiscard static VismutErrorType ASTParser_ParseFunctionCall(ASTParser
     SAFE_RISKY_EXPRESSION(ASTParser_ParseFunctionArguments(parser, &arguments, &arguments_count),
                           err);
 
-    return ASTParser_PushNode(
-        parser, ASTNode_CreateFnCall(start_pos, name, NULL, arguments, arguments_count), out_idx);
+    return ASTParser_PushNode(parser,
+                              ASTNode_CreateFnCall(start_pos, name, parser->type_ctx->type_auto,
+                                                   arguments, arguments_count),
+                              out_idx);
 }
 
 attribute_nodiscard static VismutErrorType ASTParser_ParseIdentifier(ASTParser *restrict parser,
@@ -628,53 +757,24 @@ ASTParser_ParseBinaryWithPrecedence(ASTParser *restrict parser, ASTNodeIdx *rest
     return VISMUT_ERROR_OK;
 }
 
-attribute_nodiscard static VismutErrorType ASTParser_ParseBlock(ASTParser *restrict parser,
-                                                                ASTNodeIdx *restrict out_idx) {
+attribute_nodiscard static VismutErrorType ASTParser_ParseExpression(ASTParser *restrict parser,
+                                                                     ASTNodeIdx *restrict out_idx);
+
+attribute_nodiscard static VismutErrorType ASTParser_ParseReturn(ASTParser *restrict parser,
+                                                                 ASTNodeIdx *restrict out_idx) {
+    if (!parser->ctx.is_in_function_declaration) {
+        return VISMUT_ERROR_RETURN_OUTSIDE_FUNCTION;
+    }
+
     const Position pos = ASTParser_Peek(parser).position;
 
     VismutErrorType err;
     SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
 
-    ASTNodeIdx first_expression = ASTNodeIdx_None;
-    ASTNodeIdx last_expression = ASTNodeIdx_None;
+    ASTNodeIdx expression_idx;
+    SAFE_RISKY_EXPRESSION(ASTParser_ParseExpression(parser, &expression_idx), err);
 
-    int is_void_type_block = 1;
-    while (ASTParser_Peek(parser).type != VISMUT_TOKEN_RBRACE) {
-        if (ASTParser_Peek(parser).type == VISMUT_TOKEN_EOF) {
-            break;
-        }
-
-        ASTNodeIdx current_expression;
-        SAFE_RISKY_EXPRESSION(ASTParser_ParseStatement(parser, &current_expression), err);
-
-        if (ASTNodeIdx_IsNone(first_expression)) {
-            first_expression = current_expression;
-        } else {
-            ASTBuilder_LinkNodes(parser->builder, last_expression, current_expression);
-        }
-
-        last_expression = current_expression;
-
-        if (unlikely(ASTParser_NodeAt(parser, current_expression)->expression.type !=
-                     parser->type_ctx->type_unit)) {
-            is_void_type_block = 0;
-            break;
-        }
-    }
-    if (unlikely(ASTParser_Peek(parser).type != VISMUT_TOKEN_RBRACE)) {
-        return VISMUT_ERROR_INVALID_SYNTAX;
-    }
-    SAFE_RISKY_EXPRESSION(ASTParser_Next(parser), err);
-
-    SAFE_RISKY_EXPRESSION(
-        ASTParser_PushNode(parser,
-                           ASTNode_CreateBlock(pos, first_expression,
-                                               is_void_type_block ? parser->type_ctx->type_unit
-                                                                  : parser->type_ctx->type_auto),
-                           out_idx),
-        err);
-
-    return VISMUT_ERROR_OK;
+    return ASTParser_PushNode(parser, ASTNode_CreateReturn(pos, expression_idx), out_idx);
 }
 
 attribute_nodiscard static VismutErrorType ASTParser_ParseExpression(ASTParser *restrict parser,
@@ -700,6 +800,10 @@ attribute_nodiscard static VismutErrorType ASTParser_ParseExpression(ASTParser *
         if (ASTParser_NodeAt(parser, node_idx)->block.type == parser->type_ctx->type_unit) {
             is_expression_void_type = 1;
         }
+        break;
+    case VISMUT_TOKEN_CIRCUMFLEX:
+        err = ASTParser_ParseReturn(parser, &node_idx);
+        is_expression_void_type = 1;
         break;
     default:
         err = ASTParser_ParseBinary(parser, &node_idx);
