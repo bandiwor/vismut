@@ -3,5 +3,5 @@
 make || exit 1
 
 echo "Running vismut (release):"
-./build/release/vismut ./example/main.vismut
+./build/release/vismut compile -i ./example/main.bi -o ./example/main.bic
 

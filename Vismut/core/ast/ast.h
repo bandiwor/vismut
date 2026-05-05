@@ -1,84 +1,12 @@
 #ifndef VISMUT_CORE_AST_AST_H
 #define VISMUT_CORE_AST_AST_H
 #include "../defines.h"
+#include "../memory/type_context.h"
 #include "../types.h"
+#include "ast_type.h"
 #include "scope.h"
-#include "value.h"
-
-#define X_VISMUT_AST_NODES(X)                                                                      \
-    X(VISMUT_AST_MODULE, "module")                                                                 \
-    X(VISMUT_AST_EXPRESSION, "expr")                                                               \
-    X(VISMUT_AST_LITERAL, "literal")                                                               \
-    X(VISMUT_AST_IDENTIFIER, "identifier")                                                         \
-    X(VISMUT_AST_BINARY, "bin-op")                                                                 \
-    X(VISMUT_AST_UNARY, "un-op")                                                                   \
-    X(VISMUT_AST_VAR_DECLARATION, "var-decl")                                                      \
-    X(VISMUT_AST_TYPE_CAST, "type-cast")                                                           \
-    X(VISMUT_AST_CONDITION, "condition")                                                           \
-    X(VISMUT_AST_BLOCK, "block")                                                                   \
-    X(VISMUT_AST_FN_DECLARATION, "fn-decl")                                                        \
-    X(VISMUT_AST_FN_CALL, "fn-call")                                                               \
-    X(VISMUT_AST_UNIT, "unit")                                                                     \
-    X(VISMUT_AST_TUPLE, "tuple")                                                                   \
-    X(VISMUT_AST_RETURN, "ret")                                                                    \
-    X(VISMUT_AST_UNKNOWN, "unknown")
-
-#define X_VISMUT_AST_BINARY_NODES(X)                                                               \
-    X(VISMUT_AST_BINARY_ADD, "+")                                                                  \
-    X(VISMUT_AST_BINARY_SUB, "-")                                                                  \
-    X(VISMUT_AST_BINARY_MUL, "*")                                                                  \
-    X(VISMUT_AST_BINARY_DIV, "/")                                                                  \
-    X(VISMUT_AST_BINARY_REM_DIV, "%")                                                              \
-    X(VISMUT_AST_BINARY_POW, "**")                                                                 \
-    X(VISMUT_AST_BINARY_LOGICAL_OR, "||")                                                          \
-    X(VISMUT_AST_BINARY_LOGICAL_AND, "&&")                                                         \
-    X(VISMUT_AST_BINARY_BITWISE_OR, "|")                                                           \
-    X(VISMUT_AST_BINARY_BITWISE_AND, "&")                                                          \
-    X(VISMUT_AST_BINARY_EQUALS, "==")                                                              \
-    X(VISMUT_AST_BINARY_NOT_EQUALS, "!=")                                                          \
-    X(VISMUT_AST_BINARY_LESS_THAN, "<")                                                            \
-    X(VISMUT_AST_BINARY_LESS_THAN_OR_EQUAL, "<=")                                                  \
-    X(VISMUT_AST_BINARY_GREATER_THAN, ">")                                                         \
-    X(VISMUT_AST_BINARY_GREATER_THAN_OR_EQUAL, ">=")                                               \
-    X(VISMUT_AST_BINARY_UNKNOWN, "unknown")
-
-#define X_VISMUT_AST_UNARY_NODES(X)                                                                \
-    X(VISMUT_AST_UNARY_PLUS, "+")                                                                  \
-    X(VISMUT_AST_UNARY_MINUS, "-")                                                                 \
-    X(VISMUT_AST_UNARY_LOGICAL_NOT, "!")                                                           \
-    X(VISMUT_AST_UNARY_BITWISE_NOT, "~")                                                           \
-    X(VISMUT_AST_UNARY_REFERENCE, "&")                                                             \
-    X(VISMUT_AST_UNARY_DEREFERENCE, "*")                                                           \
-    X(VISMUT_AST_UNARY_UNKNOWN, "unknown")
-
-typedef enum {
-#define X(name, text) name,
-    X_VISMUT_AST_NODES(X)
-#undef X
-        VISMUT_AST_COUNT
-} ASTNodeType;
-
-typedef enum {
-#define X(name, text) name,
-    X_VISMUT_AST_BINARY_NODES(X)
-#undef X
-        VISMUT_AST_BINARY_COUNT
-} ASTBinaryNodeType;
-
-typedef enum {
-#define X(name, text) name,
-    X_VISMUT_AST_UNARY_NODES(X)
-#undef X
-        VISMUT_AST_UNARY_COUNT
-} ASTUnaryNodeType;
-
-attribute_const const u8 *ASTNodeType_String(ASTNodeType);
-
-attribute_const const u8 *ASTBinaryNodeType_String(ASTBinaryNodeType);
-
-attribute_const const u8 *ASTUnaryNodeType_String(ASTUnaryNodeType);
-
-typedef i32 ASTNodeIdx;
+#include "symbol.h"
+#include <stdint.h>
 
 typedef struct {
     ASTNodeType type;
@@ -86,17 +14,20 @@ typedef struct {
 
     union {
         struct {
-            StringNode *name;
-            VismutScope *scope;
-            ASTNodeIdx first_expression;
-            ASTNodeIdx first_function_declaration;
+            ASTNodeIdx first_statement;
         } module;
 
         struct {
             ASTNodeIdx expr;
-            ASTNodeIdx next_expr;
+            ASTNodeIdx next;
             const VismutType *type;
         } expression;
+
+        struct {
+            ASTNodeIdx decl;
+            ASTNodeIdx next;
+            i8 is_export;
+        } declaration;
 
         struct {
             ASTNodeIdx left;
@@ -124,30 +55,36 @@ typedef struct {
         } condition;
 
         struct {
+            ASTNodeIdx condition;
+            ASTNodeIdx body;
+        } loop;
+
+        struct {
             const VismutType *type;
-            StringNode *name;
+            VismutSymbol *resolved_symbol;
+            StringView name;
         } identifier;
 
         struct {
+            ASTNodeIdx target;
+            ASTNodeIdx value;
+            ASTAssignNodeType operation;
+        } assignment;
+
+        struct {
             const VismutType *type;
-            VismutScope *scope;
-            ASTNodeIdx first_expression;
+            VismutScope scope;
+            ASTNodeIdx first_statement;
         } block;
 
         struct {
-            StringNode *name;
-            StringNode **param_names;
-            VismutScope *scope;
+            StringView name;
+            StringView *param_names;
+            VismutScope scope;
             const VismutType *signature;
+            VismutSymbol *resolved_symbol;
             ASTNodeIdx body;
         } fn_declaration;
-
-        struct {
-            StringNode *name;
-            const VismutType *fn_signature;
-            ASTNodeIdx *arguments;
-            u64 arguments_count;
-        } fn_call;
 
         struct {
             const VismutType *from_type;
@@ -156,10 +93,11 @@ typedef struct {
         } type_cast;
 
         struct {
-            StringNode *name;
+            StringView name;
             const VismutType *type;
+            VismutSymbol *resolved_symbol;
             ASTNodeIdx init;
-            int is_mutable;
+            i8 is_mutable;
         } var_declaration;
 
         struct {
@@ -172,13 +110,38 @@ typedef struct {
         struct {
             ASTNodeIdx expression;
         } ret;
-    };
-} attribute_aligned(16) ASTNode;
 
-ASTNode ASTNode_CreateModule(StringNode *name, ASTNodeIdx first_expression,
-                             ASTNodeIdx first_function_declaration);
+        struct {
+            StringView module;
+            StringView alias;
+            VismutModuleIdx module_idx;
+            VismutSymbol *resolved_symbol;
+        } import;
+
+        struct {
+            const VismutType *type;
+            VismutSymbol *resolved_symbol;
+            ASTNodeIdx object;
+            StringView member;
+        } dot;
+
+        struct {
+            const VismutType *type;
+            ASTNodeIdx object;
+            u32 arguments_count;
+            ASTNodeIdx *arguments;
+        } call;
+    };
+} attribute_aligned(8) ASTNode;
+
+const VismutType *ASTNode_GetType(const VismutTypeContext *restrict type_ctx,
+                                  const ASTNode *restrict node);
+
+ASTNode ASTNode_CreateModule(ASTNodeIdx first_statement);
 
 ASTNode ASTNode_CreateExpression(Position pos, const VismutType *type, ASTNodeIdx expr);
+
+ASTNode ASTNode_CreateDeclaration(Position pos, ASTNodeIdx decl, int is_export);
 
 ASTNode ASTNode_CreateLiteral(Position pos, const VismutType *type, VismutSimpleValue value);
 
@@ -187,7 +150,7 @@ ASTNode ASTNode_CreateTuple(Position pos, ASTNodeIdx *fields, u32 fields_count,
 
 ASTNode ASTNode_CreateUnit(Position pos);
 
-ASTNode ASTNode_CreateIdentifier(Position pos, const VismutType *type, StringNode *name);
+ASTNode ASTNode_CreateIdentifier(Position pos, const VismutType *type, StringView name);
 
 ASTNode ASTNode_CreateBinary(Position pos, const VismutType *type, ASTNodeIdx left,
                              ASTNodeIdx right, ASTBinaryNodeType op);
@@ -201,22 +164,33 @@ ASTNode ASTNode_CreateCondition(Position pos, const VismutType *type, ASTNodeIdx
 ASTNode ASTNode_CreateTypeCast(Position pos, const VismutType *from_type, const VismutType *to_type,
                                ASTNodeIdx argument);
 
-ASTNode ASTNode_CreateFnCall(Position pos, StringNode *restrict name,
-                             const VismutType *restrict fn_signature,
+ASTNode ASTNode_CreateFnCall(Position pos, StringView name, const VismutType *restrict fn_signature,
                              ASTNodeIdx *restrict arguments, const u64 arguments_count);
 
-ASTNode ASTNode_CreateVarDeclaration(Position pos, StringNode *name, const VismutType *type,
+ASTNode ASTNode_CreateVarDeclaration(Position pos, StringView name, const VismutType *type,
                                      ASTNodeIdx init, int is_mutable);
 
-ASTNode ASTNode_CreateBlock(Position pos, ASTNodeIdx first_expression, const VismutType *type);
+ASTNode ASTNode_CreateBlock(Position pos, ASTNodeIdx first_statement, const VismutType *type);
 
-ASTNode ASTNode_CreateFnDeclaration(Position pos, StringNode *restrict name,
+ASTNode ASTNode_CreateFnDeclaration(const Position pos, StringView name,
                                     const VismutType *restrict signature,
-                                    StringNode **restrict param_names, ASTNodeIdx body);
+                                    StringView *restrict param_names, VismutSymbol *resolved_symbol,
+                                    const ASTNodeIdx body);
 
 ASTNode ASTNode_CreateReturn(Position pos, ASTNodeIdx expression);
 
-#define ASTNodeIdx_None (-1)
-#define ASTNodeIdx_IsNone(node_idx) (ASTNodeIdx_None == (node_idx))
+ASTNode ASTNode_CreateLoop(Position pos, ASTNodeIdx condition, ASTNodeIdx body);
+
+ASTNode ASTNode_CreateAssignment(Position pos, ASTNodeIdx target, ASTNodeIdx value,
+                                 ASTAssignNodeType operation);
+
+ASTNode ASTNode_CreateImport(Position pos, StringView module, StringView alias,
+                             VismutModuleIdx module_idx, VismutSymbol *resolved_symbol);
+
+ASTNode ASTNode_CreateDot(Position pos, const VismutType *type, ASTNodeIdx object,
+                          StringView member);
+
+ASTNode ASTNode_CreateCall(Position pos, const VismutType *type, ASTNodeIdx object,
+                           ASTNodeIdx *restrict arguments, u32 arguments_count);
 
 #endif

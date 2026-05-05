@@ -1,19 +1,18 @@
 #include "scope.h"
 
-attribute_const VismutScope VismutScope_Create(VismutScope *parent) {
+VismutScope VismutScope_Create(VismutScope *parent) {
     return (VismutScope){
         .parent = parent,
         .node = NULL,
     };
 }
 
-attribute_pure attribute_nonnull(1, 2) VismutScopeNode *VismutScope_Find(const VismutScope *scope,
-                                                                         const StringNode *name) {
+attribute_pure VismutScopeNode *VismutScope_Find(VismutScope *scope, const StringView name) {
     for (const VismutScope *current_scope = scope; current_scope != NULL;
          current_scope = current_scope->parent) {
-        for (VismutScopeNode *current_node = scope->node; current_node != NULL;
+        for (VismutScopeNode *current_node = current_scope->node; current_node != NULL;
              current_node = current_node->prev) {
-            if (current_node->name == name) {
+            if (StringView_Equals(name, current_node->symbol->name)) {
                 return current_node;
             }
         }
@@ -22,15 +21,14 @@ attribute_pure attribute_nonnull(1, 2) VismutScopeNode *VismutScope_Find(const V
     return NULL;
 }
 
-attribute_nonnull(1, 2) void VismutScope_InsertNode(VismutScope *scope, VismutScopeNode *node) {
+void VismutScope_InsertNode(VismutScope *scope, VismutScopeNode *node) {
     node->prev = scope->node;
     scope->node = node;
 }
 
-attribute_nonnull(1, 2) VismutScopeNode VismutScopeNode_Create(StringNode *name, VismutType *type) {
+VismutScopeNode VismutScopeNode_Create(VismutSymbol *symbol) {
     return (VismutScopeNode){
-        .name = name,
-        .type = type,
+        .symbol = symbol,
         .prev = NULL,
     };
 }

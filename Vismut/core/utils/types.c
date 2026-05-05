@@ -29,3 +29,61 @@ const VismutType *VismutType_FromTypeToken(const VismutTypeContext *ctx,
         return NULL;
     }
 }
+
+attribute_const int VismutTypeKind_IsInt(const VismutTypeKind kind) {
+    switch (kind) {
+    case VISMUT_TYPE_KIND_I1:
+    case VISMUT_TYPE_KIND_I8:
+    case VISMUT_TYPE_KIND_I16:
+    case VISMUT_TYPE_KIND_I32:
+    case VISMUT_TYPE_KIND_I64:
+    case VISMUT_TYPE_KIND_U8:
+    case VISMUT_TYPE_KIND_U16:
+    case VISMUT_TYPE_KIND_U32:
+    case VISMUT_TYPE_KIND_U64:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+attribute_const int VismutTypeKind_IsUInt(const VismutTypeKind kind) {
+    switch (kind) {
+    case VISMUT_TYPE_KIND_U8:
+    case VISMUT_TYPE_KIND_U16:
+    case VISMUT_TYPE_KIND_U32:
+    case VISMUT_TYPE_KIND_U64:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+attribute_const int VismutTypeKind_IsFloat(const VismutTypeKind kind) {
+    return kind == VISMUT_TYPE_KIND_F32 || kind == VISMUT_TYPE_KIND_F64;
+}
+
+attribute_const VismutTypeKind VismutTypeKind_FromIntSuffix(const VismutIntSuffix suffix) {
+    switch (suffix) {
+    case VISMUT_INT_SUFFIX_I1:
+        return VISMUT_TYPE_KIND_I1;
+    case VISMUT_INT_SUFFIX_I8:
+        return VISMUT_TYPE_KIND_I8;
+    case VISMUT_INT_SUFFIX_I16:
+        return VISMUT_TYPE_KIND_I16;
+    case VISMUT_INT_SUFFIX_I32:
+        return VISMUT_TYPE_KIND_I32;
+    case VISMUT_INT_SUFFIX_I64:
+        return VISMUT_TYPE_KIND_I64;
+    case VISMUT_INT_SUFFIX_U8:
+        return VISMUT_TYPE_KIND_U8;
+    case VISMUT_INT_SUFFIX_U16:
+        return VISMUT_TYPE_KIND_U16;
+    case VISMUT_INT_SUFFIX_U32:
+        return VISMUT_TYPE_KIND_U32;
+    case VISMUT_INT_SUFFIX_U64:
+        return VISMUT_TYPE_KIND_U64;
+    default:
+        return VISMUT_TYPE_KIND_UNKNOWN;
+    }
+}

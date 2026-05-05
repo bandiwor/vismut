@@ -3,6 +3,9 @@
 
 attribute_pure attribute_nodiscard VismutIntSuffix ParseIntSuffix(const StringView buffer) {
     if (buffer.length == 2) {
+        if (Vismut_CmpStringViewWithCString(buffer, "i1", 2)) {
+            return VISMUT_INT_SUFFIX_I1;
+        }
         if (Vismut_CmpStringViewWithCString(buffer, "i8", 2)) {
             return VISMUT_INT_SUFFIX_I8;
         }

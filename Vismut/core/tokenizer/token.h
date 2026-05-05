@@ -28,15 +28,12 @@
     X(VISMUT_TOKEN_FOR_STATEMENT, "%%")                                                            \
     X(VISMUT_TOKEN_NAMESPACE_DECLARATION, "<>")                                                    \
     X(VISMUT_TOKEN_STRUCTURE_DECLARATION, "$>")                                                    \
-    X(VISMUT_TOKEN_RETURN_STATEMENT, "'")                                                          \
     X(VISMUT_TOKEN_PRINT_STATEMENT, "::")                                                          \
     X(VISMUT_TOKEN_INPUT_STATEMENT, "$:")                                                          \
     X(VISMUT_TOKEN_IMPORT_STATEMENT, "+>")                                                         \
     X(VISMUT_TOKEN_EXPORT_STATEMENT, "<+")                                                         \
     X(VISMUT_TOKEN_PLUS, "+")                                                                      \
-    X(VISMUT_TOKEN_PLUS_PLUS, "++")                                                                \
     X(VISMUT_TOKEN_MINUS, "-")                                                                     \
-    X(VISMUT_TOKEN_MINUS_MINUS, "--")                                                              \
     X(VISMUT_TOKEN_STAR, "*")                                                                      \
     X(VISMUT_TOKEN_STAR_STAR, "**")                                                                \
     X(VISMUT_TOKEN_SLASH, "/")                                                                     \
@@ -131,6 +128,13 @@ typedef struct {
         StringView str;
     } data;
 } VismutToken;
+
+typedef enum {
+    NB_HEX,
+    NB_DEC,
+    NB_OCT,
+    NB_BIN,
+} NumberBase;
 
 attribute_const const u8 *VismutTokenType_String(VismutTokenType);
 attribute_const const u8 *VismutIntSuffix_String(VismutIntSuffix);

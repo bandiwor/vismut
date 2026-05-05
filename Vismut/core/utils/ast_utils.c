@@ -1,28 +1,36 @@
 #include "ast_utils.h"
-#include "value.h"
 #include <assert.h>
 
-attribute_const OperatorPrecedence GetPrecedence(const VismutTokenType token) {
+attribute_const OperatorPrecedence GetPrecedence(const ASTBinaryNodeType token) {
     switch (token) {
-    case VISMUT_TOKEN_LOGICAL_OR:
+    case VISMUT_AST_BINARY_BITWISE_OR:
+        return PRECEDENCE_BITWISE_OR;
+    case VISMUT_AST_BINARY_BITWISE_AND:
+        return PRECEDENCE_BITWISE_AND;
+    case VISMUT_AST_BINARY_BITWISE_XOR:
+        return PRECEDENCE_BITWISE_XOR;
+    case VISMUT_AST_BINARY_LOGICAL_OR:
         return PRECEDENCE_LOGICAL_OR;
-    case VISMUT_TOKEN_AMPERSAND_AMPERSAND: // logical and
+    case VISMUT_AST_BINARY_LOGICAL_AND:
         return PRECEDENCE_LOGICAL_AND;
-    case VISMUT_TOKEN_EQUAL_EQUAL:
-    case VISMUT_TOKEN_NOT_EQUALS:
+    case VISMUT_AST_BINARY_EQUALS:
+    case VISMUT_AST_BINARY_NOT_EQUALS:
         return PRECEDENCE_EQUALITY;
-    case VISMUT_TOKEN_LANGLE:
-    case VISMUT_TOKEN_LESS_THAN_OR_EQUALS:
-    case VISMUT_TOKEN_RANGLE:
-    case VISMUT_TOKEN_GREATER_THAN_OR_EQUALS:
+    case VISMUT_AST_BINARY_SHIFT_LEFT:
+    case VISMUT_AST_BINARY_SHIFT_RIGHT:
+        return PRECEDENCE_SHIFT;
+    case VISMUT_AST_BINARY_LESS_THAN:
+    case VISMUT_AST_BINARY_LESS_THAN_OR_EQUAL:
+    case VISMUT_AST_BINARY_GREATER_THAN:
+    case VISMUT_AST_BINARY_GREATER_THAN_OR_EQUAL:
         return PRECEDENCE_RELATIONAL;
-    case VISMUT_TOKEN_PLUS:
-    case VISMUT_TOKEN_MINUS:
+    case VISMUT_AST_BINARY_ADD:
+    case VISMUT_AST_BINARY_SUB:
         return PRECEDENCE_ADDITIVE;
-    case VISMUT_TOKEN_STAR:
-    case VISMUT_TOKEN_SLASH:
+    case VISMUT_AST_BINARY_MUL:
+    case VISMUT_AST_BINARY_DIV:
         return PRECEDENCE_MULTIPLICATIVE;
-    case VISMUT_TOKEN_STAR_STAR:
+    case VISMUT_AST_BINARY_POW:
         return PRECEDENCE_UNARY;
     default:
         return PRECEDENCE_NONE;
@@ -55,6 +63,18 @@ attribute_const ASTBinaryNodeType GetBinaryType(const VismutTokenType token) {
         return VISMUT_AST_BINARY_LESS_THAN;
     case VISMUT_TOKEN_LESS_THAN_OR_EQUALS:
         return VISMUT_AST_BINARY_LESS_THAN_OR_EQUAL;
+    case VISMUT_TOKEN_BITWISE_OR:
+        return VISMUT_AST_BINARY_BITWISE_OR;
+    case VISMUT_TOKEN_AMPERSAND:
+        return VISMUT_AST_BINARY_BITWISE_AND;
+    case VISMUT_TOKEN_SHIFT_LEFT:
+        return VISMUT_AST_BINARY_SHIFT_LEFT;
+    case VISMUT_TOKEN_SHIFT_RIGHT:
+        return VISMUT_AST_BINARY_SHIFT_RIGHT;
+    case VISMUT_TOKEN_CIRCUMFLEX:
+        return VISMUT_AST_BINARY_BITWISE_XOR;
+    case VISMUT_TOKEN_LOGICAL_OR:
+        return VISMUT_AST_BINARY_LOGICAL_OR;
     default:
         return VISMUT_AST_BINARY_UNKNOWN;
     }
@@ -70,10 +90,6 @@ attribute_const ASTUnaryNodeType GetUnaryType(const VismutTokenType token) {
         return VISMUT_AST_UNARY_LOGICAL_NOT;
     case VISMUT_TOKEN_TILDA:
         return VISMUT_AST_UNARY_BITWISE_NOT;
-    case VISMUT_TOKEN_AMPERSAND:
-        return VISMUT_AST_UNARY_REFERENCE;
-    case VISMUT_TOKEN_STAR:
-        return VISMUT_AST_UNARY_DEREFERENCE;
     default:
         return VISMUT_AST_UNARY_UNKNOWN;
     }
@@ -107,5 +123,16 @@ attribute_pure const VismutType *VismutTypeTokenToType(const VismutTokenType typ
     default:
         assert(0 && "Unreachable!");
         return ctx->type_unit;
+    }
+}
+
+attribute_pure ASTNodeIdx ASTNode_GetNextStatement(const ASTNode *node) {
+    switch (node->type) {
+    case VISMUT_AST_EXPRESSION:
+        return node->expression.next;
+    case VISMUT_AST_DECLARATION:
+        return node->declaration.next;
+    default:
+        return ASTNodeIdx_None;
     }
 }

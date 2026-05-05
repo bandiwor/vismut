@@ -5,44 +5,23 @@
 ASTBuilder ASTBuilder_Create(VismutTokenizer *tokenizer) {
     return (ASTBuilder){
         .tokenizer = tokenizer,
-        .arena = tokenizer->arena,
-        .nodes = NULL,
-        .nodes_capacity = 0,
-        .nodes_length = 0,
+        .nodes_vector = RawVector_Create(),
     };
 }
 
-static u32 ASTBuilder_CalculateNodesCapacity(const u32 old_capacity) {
-    if (old_capacity <= 32) {
-        return 32;
-    } else {
-        return old_capacity * 2;
-    }
-}
-
-attribute_nodiscard static VismutErrorType ASTBuilder_MemoryExtend(ASTBuilder *builder) {
-    const u32 new_capacity = ASTBuilder_CalculateNodesCapacity(builder->nodes_capacity);
-    ASTNode *new_nodes = __builtin_realloc(builder->nodes, new_capacity);
-    if (new_nodes == NULL) {
-        return VISMUT_ERROR_OUT_OF_MEMORY;
-    }
-    builder->nodes_capacity = new_capacity;
-    builder->nodes = new_nodes;
-
-    return VISMUT_ERROR_OK;
-}
+#define SYSTEM_PAGE_SIZE_BYTES 4096
 
 attribute_nodiscard VismutErrorType ASTBuilder_PushNode(ASTBuilder *restrict builder,
-                                                        const ASTNode *restrict node) {
+                                                        const ASTNode *restrict node,
+                                                        ASTNodeIdx *restrict out_idx,
+                                                        VismutErrorDetails *restrict out_details) {
     VismutErrorType err;
-    if (unlikely(builder->nodes_capacity <= builder->nodes_length)) {
-        SAFE_RISKY_EXPRESSION(ASTBuilder_MemoryExtend(builder), err);
-    }
+    ASTNodeIdx new_idx = RawVector_Count(&builder->nodes_vector, ASTNode);
 
-    builder->nodes[builder->nodes_length] = *node;
-    ++builder->nodes_length;
+    RawVector_Push(&builder->nodes_vector, ASTNode, *node, err, out_details);
 
-    return VISMUT_ERROR_OK;
+    *out_idx = new_idx;
+    return VISMUT_OK;
 }
 
 attribute_nodiscard VismutErrorType ASTBuilder_NextToken(ASTBuilder *restrict builder,
@@ -51,11 +30,13 @@ attribute_nodiscard VismutErrorType ASTBuilder_NextToken(ASTBuilder *restrict bu
 }
 
 void ASTBuilder_LinkNodes(ASTBuilder *builder, const ASTNodeIdx prev, const ASTNodeIdx next) {
-    ASTNode *prev_node = &builder->nodes[prev];
-
+    ASTNode *prev_node = ASTBuilder_NodeAt(builder, prev);
     switch (prev_node->type) {
     case VISMUT_AST_EXPRESSION:
-        prev_node->expression.next_expr = next;
+        prev_node->expression.next = next;
+        break;
+    case VISMUT_AST_DECLARATION:
+        prev_node->declaration.next = next;
         break;
     default:
         assert(0 && "This node type cannot be linked as a sequence");

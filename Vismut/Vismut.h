@@ -1,9 +1,8 @@
 #ifndef VISMUT_VISMUT_H
 #define VISMUT_VISMUT_H
 
-#include "core/errors/errors.h"
-#include "core/io/file_reader.h"
-#include "core/types.h"
-#include "debug.h"
+#define VISMUT_VERSION_MAJOR 0
+#define VISMUT_VERSION_MINOR 1
+#define VISMUT_VERSION_PATCH 0
 
 #endif

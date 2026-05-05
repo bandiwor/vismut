@@ -21,13 +21,14 @@
 #define attribute_nullable __attribute__((_Nullable))
 #define attribute_aligned(x) __attribute__((aligned(x)))
 #define attribute_alloc_align(x) __attribute__((alloc_align(x)))
+#define assume_aligned(x, align) (__builtin_assume_aligned(x, align))
 
 #define WRAPPER_START do {
 #define WRAPPER_END                                                                                \
     }                                                                                              \
     while (0)
 
-#define RISKY_FAILED(expression, err_var) unlikely((err_var = (expression)) != VISMUT_ERROR_OK)
+#define RISKY_FAILED(expression, err_var) unlikely((err_var = (expression)) != VISMUT_OK)
 
 #define SAFE_RISKY_EXPRESSION(expression, err_var)                                                 \
     if (RISKY_FAILED(expression, err_var))                                                         \
@@ -39,5 +40,8 @@
 #define ALIGN_DOWN(addr, size) ((addr) & ~((size) - 1))
 
 #define COUNTOF(arr) (sizeof(arr) / sizeof(*arr))
+
+#define _STRINGIFY(x) #x
+#define STRINGIFY(x) _STRINGIFY(x)
 
 #endif

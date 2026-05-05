@@ -1,50 +1,61 @@
 #include "ast.h"
+#include "ast_type.h"
+#include "scope.h"
+#include "symbol.h"
 #include <assert.h>
 
-attribute_const const u8 *ASTNodeType_String(const ASTNodeType type) {
-#define X(name, text) [name] = (const u8 *)text,
-    static const u8 *const codes_table[] = {X_VISMUT_AST_NODES(X)};
-#undef X
-
-    if (unlikely(type >= VISMUT_AST_COUNT || type < 0)) {
-        return codes_table[VISMUT_AST_UNKNOWN];
+const VismutType *ASTNode_GetType(const VismutTypeContext *restrict type_ctx,
+                                  const ASTNode *restrict node) {
+    switch (node->type) {
+    case VISMUT_AST_MODULE:
+        return type_ctx->type_unit;
+    case VISMUT_AST_EXPRESSION:
+        return node->expression.type;
+    case VISMUT_AST_DECLARATION:
+        return type_ctx->type_unit;
+    case VISMUT_AST_LITERAL:
+        return node->literal.type;
+    case VISMUT_AST_IDENTIFIER:
+        return node->identifier.type;
+    case VISMUT_AST_ASSIGNMENT:
+        return type_ctx->type_unit;
+    case VISMUT_AST_BINARY:
+        return node->binary.type;
+    case VISMUT_AST_UNARY:
+        return node->unary.type;
+    case VISMUT_AST_VAR_DECLARATION:
+        return type_ctx->type_unit;
+    case VISMUT_AST_TYPE_CAST:
+        return node->type_cast.to_type;
+    case VISMUT_AST_CONDITION:
+        return node->condition.type;
+    case VISMUT_AST_LOOP:
+        return type_ctx->type_unit;
+    case VISMUT_AST_BLOCK:
+        return node->block.type;
+    case VISMUT_AST_FN_DECLARATION:
+        return type_ctx->type_unit;
+    case VISMUT_AST_CALL:
+        return node->call.type;
+    case VISMUT_AST_UNIT:
+        return type_ctx->type_unit;
+    case VISMUT_AST_TUPLE:
+        return node->tuple.type;
+    case VISMUT_AST_RETURN:
+        return type_ctx->type_never;
+    default:
+        return type_ctx->type_unit;
     }
-
-    return codes_table[type];
 }
 
-attribute_const const u8 *ASTBinaryNodeType_String(const ASTBinaryNodeType type) {
-#define X(name, text) [name] = (const u8 *)text,
-    static const u8 *const codes_table[] = {X_VISMUT_AST_BINARY_NODES(X)};
-#undef X
-
-    if (unlikely(type >= VISMUT_AST_BINARY_COUNT || type < 0)) {
-        return codes_table[VISMUT_AST_BINARY_UNKNOWN];
-    }
-
-    return codes_table[type];
-}
-
-attribute_const const u8 *ASTUnaryNodeType_String(const ASTUnaryNodeType type) {
-#define X(name, text) [name] = (const u8 *)text,
-    static const u8 *const codes_table[] = {X_VISMUT_AST_UNARY_NODES(X)};
-#undef X
-
-    if (unlikely(type >= VISMUT_AST_UNARY_COUNT || type < 0)) {
-        return codes_table[VISMUT_AST_UNARY_UNKNOWN];
-    }
-
-    return codes_table[type];
-}
-
-ASTNode ASTNode_CreateModule(StringNode *name, const ASTNodeIdx first_expression,
-                             const ASTNodeIdx first_function_declaration) {
+ASTNode ASTNode_CreateModule(const ASTNodeIdx first_statement) {
     return (ASTNode){
         .type = VISMUT_AST_MODULE,
         .pos = {0},
-        .module = {.name = name,
-                   .first_expression = first_expression,
-                   .first_function_declaration = first_function_declaration},
+        .module =
+            {
+                .first_statement = first_statement,
+            },
     };
 }
 
@@ -55,7 +66,17 @@ ASTNode ASTNode_CreateExpression(const Position pos, const VismutType *type,
                      .expression = {
                          .type = type,
                          .expr = expr,
-                         .next_expr = ASTNodeIdx_None,
+                         .next = ASTNodeIdx_None,
+                     }};
+}
+
+ASTNode ASTNode_CreateDeclaration(const Position pos, const ASTNodeIdx decl, const int is_export) {
+    return (ASTNode){.type = VISMUT_AST_DECLARATION,
+                     .pos = pos,
+                     .declaration = {
+                         .decl = decl,
+                         .next = ASTNodeIdx_None,
+                         .is_export = is_export,
                      }};
 }
 
@@ -100,7 +121,7 @@ ASTNode ASTNode_CreateUnary(const Position pos, const VismutType *type, const AS
     };
 }
 
-ASTNode ASTNode_CreateIdentifier(const Position pos, const VismutType *type, StringNode *name) {
+ASTNode ASTNode_CreateIdentifier(const Position pos, const VismutType *type, StringView name) {
     return (ASTNode){
         .type = VISMUT_AST_IDENTIFIER,
         .pos = pos,
@@ -142,23 +163,7 @@ ASTNode ASTNode_CreateTypeCast(const Position pos, const VismutType *from_type,
     };
 }
 
-ASTNode ASTNode_CreateFnCall(const Position pos, StringNode *restrict name,
-                             const VismutType *restrict fn_signature,
-                             ASTNodeIdx *restrict arguments, const u64 arguments_count) {
-    return (ASTNode){
-        .type = VISMUT_AST_FN_CALL,
-        .pos = pos,
-        .fn_call =
-            {
-                .fn_signature = fn_signature,
-                .name = name,
-                .arguments = arguments,
-                .arguments_count = arguments_count,
-            },
-    };
-}
-
-ASTNode ASTNode_CreateVarDeclaration(const Position pos, StringNode *name, const VismutType *type,
+ASTNode ASTNode_CreateVarDeclaration(const Position pos, StringView name, const VismutType *type,
                                      const ASTNodeIdx init, const int is_mutable) {
     return (ASTNode){
         .type = VISMUT_AST_VAR_DECLARATION,
@@ -173,16 +178,16 @@ ASTNode ASTNode_CreateVarDeclaration(const Position pos, StringNode *name, const
     };
 }
 
-ASTNode ASTNode_CreateBlock(const Position pos, const ASTNodeIdx first_expression,
+ASTNode ASTNode_CreateBlock(const Position pos, const ASTNodeIdx first_statement,
                             const VismutType *type) {
     return (ASTNode){
         .type = VISMUT_AST_BLOCK,
         .pos = pos,
         .block =
             {
-                .first_expression = first_expression,
+                .first_statement = first_statement,
                 .type = type,
-                .scope = NULL,
+                .scope = VismutScope_Create(NULL),
             },
     };
 }
@@ -209,9 +214,10 @@ ASTNode ASTNode_CreateUnit(const Position pos) {
     };
 }
 
-ASTNode ASTNode_CreateFnDeclaration(const Position pos, StringNode *restrict name,
+ASTNode ASTNode_CreateFnDeclaration(const Position pos, StringView name,
                                     const VismutType *restrict signature,
-                                    StringNode **restrict param_names, const ASTNodeIdx body) {
+                                    StringView *restrict param_names, VismutSymbol *resolved_symbol,
+                                    const ASTNodeIdx body) {
     return (ASTNode){
         .type = VISMUT_AST_FN_DECLARATION,
         .pos = pos,
@@ -220,7 +226,8 @@ ASTNode ASTNode_CreateFnDeclaration(const Position pos, StringNode *restrict nam
                 .name = name,
                 .signature = signature,
                 .param_names = param_names,
-                .scope = NULL,
+                .resolved_symbol = resolved_symbol,
+                .scope = VismutScope_Create(NULL),
                 .body = body,
             },
     };
@@ -232,4 +239,71 @@ ASTNode ASTNode_CreateReturn(const Position pos, const ASTNodeIdx expression) {
                      .ret = {
                          .expression = expression,
                      }};
+}
+
+ASTNode ASTNode_CreateLoop(const Position pos, const ASTNodeIdx condition, const ASTNodeIdx body) {
+    return (ASTNode){
+        .type = VISMUT_AST_LOOP,
+        .pos = pos,
+        .loop =
+            {
+                .condition = condition,
+                .body = body,
+            },
+    };
+}
+
+ASTNode ASTNode_CreateAssignment(const Position pos, const ASTNodeIdx target,
+                                 const ASTNodeIdx value, const ASTAssignNodeType operation) {
+    return (ASTNode){
+        .type = VISMUT_AST_ASSIGNMENT,
+        .pos = pos,
+        .assignment =
+            {
+                .target = target,
+                .value = value,
+                .operation = operation,
+            },
+    };
+}
+
+ASTNode ASTNode_CreateImport(const Position pos, StringView module, StringView alias,
+                             const VismutModuleIdx module_idx, VismutSymbol *resolved_symbol) {
+    return (ASTNode){.type = VISMUT_AST_IMPORT,
+                     .pos = pos,
+                     .import = {
+                         .module = module,
+                         .module_idx = module_idx,
+                         .alias = alias,
+                         .resolved_symbol = resolved_symbol,
+                     }};
+}
+
+ASTNode ASTNode_CreateDot(const Position pos, const VismutType *type, const ASTNodeIdx object,
+                          StringView member) {
+    return (ASTNode){
+        .type = VISMUT_AST_DOT,
+        .pos = pos,
+        .dot =
+            {
+                .type = type,
+                .object = object,
+                .member = member,
+            },
+    };
+}
+
+ASTNode ASTNode_CreateCall(Position pos, const VismutType *type, const ASTNodeIdx object,
+                           ASTNodeIdx *restrict arguments, const u32 arguments_count) {
+    return (ASTNode){
+        .type = VISMUT_AST_CALL,
+        .pos = pos,
+        .call =
+            {
+                .type = type,
+                .object = object,
+                .arguments = arguments,
+                .arguments_count = arguments_count,
+            },
+    };
 }

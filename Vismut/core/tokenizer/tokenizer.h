@@ -10,13 +10,11 @@ typedef struct {
     const u8 *limit;
     const u8 *token_start;
     const u8 *start;
-    const u8 *const source_filename;
     VismutErrorInfo *error_info;
 } VismutTokenizer;
 
-attribute_nonnull(2, 3) attribute_nodiscard VismutTokenizer
-    VismutTokenizer_Create(const StringView source, const u8 *restrict const source_filename,
-                           Arena *restrict, VismutErrorInfo *restrict);
+attribute_nodiscard VismutTokenizer VismutTokenizer_Create(const StringView source, Arena *restrict,
+                                                           VismutErrorInfo *restrict);
 
 attribute_nonnull(1) void VismutTokenizer_Reset(VismutTokenizer *);
 

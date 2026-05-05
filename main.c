@@ -1,64 +1,51 @@
 #include "Vismut/args/parse_args.h"
-#include "Vismut/core/ast/ast_builder.h"
-#include "Vismut/core/ast/ast_parser.h"
-#include "Vismut/core/ast/ast_printer.h"
-#include "Vismut/core/ast/value.h"
+#include "Vismut/compile/compile.h"
 #include "Vismut/core/defines.h"
+#include "Vismut/core/errors/error_details.h"
 #include "Vismut/core/errors/errors.h"
-#include "Vismut/core/io/file_reader.h"
-#include "Vismut/core/memory/arena.h"
-#include "Vismut/core/memory/string_pool.h"
-#include "Vismut/core/tokenizer/tokenizer.h"
+#include "Vismut/core/printer/error_printer.h"
+#include "Vismut/core/types.h"
+#include <assert.h>
 #include <stdio.h>
+#include <unistd.h>
 
-static VismutErrorType vismut_start(const int argc,
-                                    const char *restrict const *restrict const argv) {
-    VismutArgs args;
-    if (!VismutArgs_Parse(argv, argc, &args)) {
-        return VISMUT_ERROR_PARSING_ARGS;
-    }
-    if (args.is_help_int) {
-        VismutArgs_PrintHelp(argv[0]);
-        return VISMUT_ERROR_OK;
-    }
-
-    printf("Reading file %s...:\n", args.input_file);
-
-    StringView file_contents = {0};
+static VismutErrorType vismut_start(const int argc, const char *restrict const *restrict const argv,
+                                    VismutErrorInfo *error_info) {
     VismutErrorType err = 0;
+    VismutArgs args;
+    SAFE_RISKY_EXPRESSION(VismutArgs_Parse(argc, argv, &args), err);
 
-    SAFE_RISKY_EXPRESSION(FileReader_ReadText(args.input_file, &file_contents), err);
-
-    printf("%.*s\n", (int)file_contents.length, file_contents.data);
-
-    VismutErrorInfo error_info = {0};
-    Arena arena = Arena_Create();
-    VismutTokenizer tokenizer =
-        VismutTokenizer_Create(file_contents, args.input_file, &arena, &error_info);
-
-    StringPool string_pool = StringPool_Create();
-    SAFE_RISKY_EXPRESSION(StringPool_Init(&string_pool, 512), err);
-
-    VismutTypeContext type_ctx;
-    SAFE_RISKY_EXPRESSION(VismutTypeContext_Init(&type_ctx, 512), err);
-
-    ASTBuilder ast_builder = ASTBuilder_Create(&tokenizer);
-    ASTParser parser = ASTParser_Create(&ast_builder, &string_pool, &type_ctx);
-
-    SAFE_RISKY_EXPRESSION(ASTParser_Parse(&parser), err);
-
-    ASTPrinter ast_printer =
-        ASTPrinter_Create(ast_builder.nodes, ast_builder.nodes_length, stdout, 0);
-    ASTPrinter_Print(&ast_printer, parser.module_node);
-
-    return VISMUT_ERROR_OK;
+    switch (args.command) {
+    case VISMUT_CMD_COMPILE:
+        return compile_program(&args.compile, error_info);
+    case VISMUT_CMD_RUN:
+        printf("Running doesn't support now.\n");
+        return VISMUT_OK;
+    case VISMUT_CMD_INTERACTIVE:
+        printf("Interactive mode doesn't support now.\n");
+        return VISMUT_OK;
+    case VISMUT_CMD_HELP:
+    case VISMUT_CMD_NONE:
+        VismutArgs_PrintHelp(StringView_FromCStr(argv[0]));
+        return VISMUT_OK;
+    case VISMUT_CMD_VERSION:
+        VismutArgs_PrintVersion();
+        return VISMUT_OK;
+    default:
+        assert(0 && "Unreachable!\n");
+        __builtin_unreachable();
+        return VISMUT_ERR_UNREACHABLE;
+    }
 }
 
 int main(int argc, const char *const *const argv) {
-    const VismutErrorType code = vismut_start(argc, argv);
-    if (unlikely(code != VISMUT_ERROR_OK)) {
-        printf(":: Vismut exit with status %d (%s)\n", code, VismutErrorType_String(code));
-        VismutArgs_PrintHelp(argv[0]);
+    VismutErrorInfo error_info = {0};
+    const VismutErrorType code = vismut_start(argc, argv, &error_info);
+    if (unlikely(code != VISMUT_OK)) {
+        if (code != VISMUT_ERR_BAD_ARGS) {
+            ErrorPrinter_Print(StringView_FromCStr("main"), &error_info, stdout);
+            printf(":: Vismut exit with status %d (%s)\n", code, VismutErrorType_String(code));
+        }
     }
 
     return code;

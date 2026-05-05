@@ -1,30 +1,42 @@
 #ifndef VISMUT_ARGS_PARSE_ARGS_H
 #define VISMUT_ARGS_PARSE_ARGS_H
+#include "../core/errors/errors.h"
 #include "../core/types.h"
+#include <stdbool.h>
 
-typedef enum { ARG_FLAG, ARG_VALUE } VismutArgType;
-
-#define X_ARGS(X)                                                                                  \
-    X(ARG_FLAG, HELP, "--help", is_help, 0, "Show help information")                               \
-    X(ARG_VALUE, OUTPUT, "-o", output_path, "vismut.output.c", "Output .c file")
+typedef enum {
+    VISMUT_CMD_NONE = 0,
+    VISMUT_CMD_COMPILE,
+    VISMUT_CMD_RUN,
+    VISMUT_CMD_INTERACTIVE,
+    VISMUT_CMD_HELP,
+    VISMUT_CMD_VERSION,
+} VismutCommand;
 
 typedef struct {
-    const u8 *input_file;
-#define X(type, name, str, field, def, desc)                                                       \
-    union {                                                                                        \
-        const char *field##_str;                                                                   \
-        int field##_int;                                                                           \
+    StringView input_file;
+    StringView output_file;
+    bool no_print_ast;
+    bool no_print_inputs;
+} VismutCompileArgs;
+
+typedef struct {
+    StringView input_file;
+} VismutRunArgs;
+
+typedef struct {
+    VismutCommand command;
+    union {
+        VismutCompileArgs compile;
+        VismutRunArgs run;
     };
-    X_ARGS(X)
-#undef X
 } VismutArgs;
 
-/* Returns 1 if successed
- * Returns 0 if failed
- */
-int VismutArgs_Parse(const char *restrict const *restrict const argv, const int argc,
-                     VismutArgs *restrict out_args);
+VismutErrorType VismutArgs_Parse(int argc, const char *const restrict *const restrict argv,
+                                 VismutArgs *restrict out_args);
 
-void VismutArgs_PrintHelp(const char *const self_name);
+void VismutArgs_PrintHelp(StringView);
+
+void VismutArgs_PrintVersion(void);
 
 #endif
