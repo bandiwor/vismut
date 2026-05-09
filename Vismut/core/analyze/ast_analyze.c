@@ -346,9 +346,7 @@ ASTAnalyzer_Analyze(ASTAnalyzer *restrict ctx, const ASTNodeIdx idx,
     case VISMUT_AST_VAR_DECLARATION: {
         const VismutType *annototaion_type = node_at(ctx, idx)->var_declaration.type;
         const VismutType *restore_help_type = ctx->state.help_type;
-        if (annototaion_type != ctx->type_context->type_auto) {
-            ctx->state.help_type = annototaion_type;
-        }
+        ctx->state.help_type = annototaion_type;
 
         const VismutType *init_expression_type;
         SAFE_RISKY_EXPRESSION(ASTAnalyzer_Analyze(ctx, node_at(ctx, idx)->var_declaration.init,

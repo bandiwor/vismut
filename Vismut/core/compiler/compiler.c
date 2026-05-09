@@ -78,16 +78,7 @@ static VismutErrorType emit_wide(VismutCompiler *compiler, const VismutWideInstr
     VismutErrorType err;
     VismutErrorDetails details = {0};
 
-    const VismutInstruction word1 = (VismutInstruction)(inst & 0xFFFFFFFF);
-    const VismutInstruction word2 = (VismutInstruction)(inst >> 32);
-
-    RawVector_Push(&compiler->bytecode, VismutInstruction, word1, err, &details);
-    if (err != VISMUT_OK) {
-        VismutCompiler_SetErrorInfo(compiler, err, Position_Create(0, 0), details);
-        return err;
-    }
-
-    RawVector_Push(&compiler->bytecode, VismutInstruction, word2, err, &details);
+    RawVector_Push(&compiler->bytecode, VismutWideInstruction, inst, err, &details);
     if (err != VISMUT_OK) {
         VismutCompiler_SetErrorInfo(compiler, err, Position_Create(0, 0), details);
         return err;
@@ -193,8 +184,8 @@ VismutErrorType VismutCompiler_CompileBinary(VismutCompiler *ctx, const VismutOp
     ctx->ctx.next_free_reg = old_next_free_reg;
 
     const u8 result_reg = get_next_reg(ctx);
-    SAFE_RISKY_EXPRESSION(emit(ctx, VismutOpcode_ABC(opcode, result_reg, reg_left, reg_right)),
-                          err);
+    SAFE_RISKY_EXPRESSION(
+        emit(ctx, VismutInstruction_MakeABC(opcode, result_reg, reg_left, reg_right)), err);
 
     *out_reg = result_reg;
     return VISMUT_OK;
@@ -211,7 +202,7 @@ VismutErrorType VismutCompiler_CompileUnary(VismutCompiler *ctx, const VismutOpc
     ctx->ctx.next_free_reg = old_next_free_reg;
 
     const u8 result_reg = get_next_reg(ctx);
-    SAFE_RISKY_EXPRESSION(emit(ctx, VismutOpcode_AB(opcode, result_reg, reg_right)), err);
+    SAFE_RISKY_EXPRESSION(emit(ctx, VismutInstruction_MakeAB(opcode, result_reg, reg_right)), err);
 
     *out_reg = result_reg;
     return VISMUT_OK;
@@ -228,7 +219,8 @@ VismutErrorType VismutCompiler_CompileExpression(VismutCompiler *ctx, const ASTN
         SAFE_RISKY_EXPRESSION(VismutCompiler_InternLiteral(ctx, at(idx), &cp_idx), err);
 
         const u8 target_reg = get_next_reg(ctx);
-        SAFE_RISKY_EXPRESSION(emit(ctx, VismutOpcode_ABX(OP_LOAD_CONST, target_reg, cp_idx)), err)
+        SAFE_RISKY_EXPRESSION(
+            emit(ctx, VismutInstruction_MakeABx(OP_LOAD_CONST, target_reg, cp_idx)), err)
 
         *out_reg = target_reg;
     }
@@ -277,9 +269,10 @@ VismutErrorType VismutCompiler_CompileExpression(VismutCompiler *ctx, const ASTN
 
         if (sym->kind == VISMUT_SYMBOL_GLOBAL_VAR) {
             const u8 target_reg = get_next_reg(ctx);
-            SAFE_RISKY_EXPRESSION(emit(ctx, VismutOpcode_ABX(OP_LOAD_GLOBAL, target_reg,
-                                                             sym->as.global_var.global_index)),
-                                  err);
+            SAFE_RISKY_EXPRESSION(
+                emit(ctx, VismutInstruction_MakeABx(OP_LOAD_GLOBAL, target_reg,
+                                                    sym->as.global_var.global_index)),
+                err);
             *out_reg = target_reg;
         } else if (sym->kind == VISMUT_SYMBOL_LOCAL_VAR) {
             *out_reg = sym->as.local_var.register_index;
@@ -293,19 +286,40 @@ VismutErrorType VismutCompiler_CompileExpression(VismutCompiler *ctx, const ASTN
         ASTNode *call_node = at(idx);
         u32 arg_count = call_node->call.arguments_count;
 
-        u8 temp_arg_regs[256];
+        u8 temp_arg_regs[arg_count > 0 ? arg_count : 1];
+
+        const u8 initial_free_reg = ctx->ctx.next_free_reg;
+
         for (u32 i = 0; i < arg_count; ++i) {
             SAFE_RISKY_EXPRESSION(VismutCompiler_CompileExpression(
                                       ctx, call_node->call.arguments[i], &temp_arg_regs[i]),
                                   err);
         }
 
-        const u8 args_start = ctx->ctx.next_free_reg;
-        ctx->ctx.next_free_reg += (arg_count > 0 ? arg_count : 1);
+        u8 args_start;
+        i1 is_contiguous = 0;
 
-        for (u32 i = 0; i < arg_count; ++i) {
-            SAFE_RISKY_EXPRESSION(
-                emit(ctx, VismutOpcode_ABC(OP_MOVE, args_start + i, temp_arg_regs[i], 0)), err);
+        if (arg_count > 0 && temp_arg_regs[0] >= initial_free_reg) {
+            is_contiguous = 1;
+            for (u32 i = 1; i < arg_count; ++i) {
+                if (temp_arg_regs[i] != temp_arg_regs[i - 1] + 1) {
+                    is_contiguous = 0;
+                    break;
+                }
+            }
+        }
+
+        if (is_contiguous) {
+            args_start = temp_arg_regs[0];
+        } else {
+            args_start = ctx->ctx.next_free_reg;
+            ctx->ctx.next_free_reg += (arg_count > 0 ? arg_count : 1);
+
+            for (u32 i = 0; i < arg_count; ++i) {
+                SAFE_RISKY_EXPRESSION(
+                    emit(ctx, VismutInstruction_MakeAB(OP_MOVE, args_start + i, temp_arg_regs[i])),
+                    err);
+            }
         }
 
         ASTNode *target_node = at(call_node->call.object);
@@ -317,12 +331,13 @@ VismutErrorType VismutCompiler_CompileExpression(VismutCompiler *ctx, const ASTN
         }
 
         const u32 patch_index = RawVector_Count(&ctx->bytecode, VismutInstruction);
-        VismutWideInstruction call_inst =
-            VismutOpcode_ABC_WIDE(OP_CALL, args_start, arg_count, 0, 0xFFFFFFFF);
+        VismutWideInstruction call_inst = VismutInstruction_MakeWide(
+            VismutInstruction_MakeABC(OP_CALL, args_start, arg_count, 0), 0xFFFFFFFF);
         SAFE_RISKY_EXPRESSION(emit_wide(ctx, call_inst), err);
 
         CallPatch patch = {.instruction_index = patch_index, .target_func = target_symbol};
         RawVector_Push(&ctx->call_patches, CallPatch, patch, err, &details);
+
         *out_reg = args_start;
     }
         return VISMUT_OK;
@@ -355,55 +370,173 @@ VismutErrorType VismutCompiler_CompileExpression(VismutCompiler *ctx, const ASTN
             u8 ret_reg;
 
             SAFE_RISKY_EXPRESSION(VismutCompiler_CompileExpression(ctx, expr_idx, &ret_reg), err);
-            SAFE_RISKY_EXPRESSION(emit(ctx, VismutOpcode_A(OP_RET, ret_reg)), err);
+            SAFE_RISKY_EXPRESSION(emit(ctx, VismutInstruction_MakeA(OP_RET, ret_reg)), err);
         } else {
-            SAFE_RISKY_EXPRESSION(emit(ctx, VismutOpcode_A(OP_RET, 0)), err);
+            SAFE_RISKY_EXPRESSION(emit(ctx, VismutInstruction_MakeA(OP_RET, 0)), err);
         }
     }
         return VISMUT_OK;
 
     case VISMUT_AST_CONDITION: {
-        u8 cond_reg;
-        SAFE_RISKY_EXPRESSION(
-            VismutCompiler_CompileExpression(ctx, at(idx)->condition.condition, &cond_reg), err);
+        u8 result_reg = 0;
+        i1 result_allocated = 0;
 
-        u32 jmp_if_false_idx = RawVector_Count(&ctx->bytecode, VismutInstruction);
+#define MAX_CHAIN_JUMPS 128
+        u32 jump_ends[MAX_CHAIN_JUMPS];
+        u32 jump_ends_count = 0;
 
-        SAFE_RISKY_EXPRESSION(emit(ctx, VismutOpcode_ABX(OP_JMP_IF_FALSE, cond_reg, 0)),
-                              err); // 0 - пока заглушка
-
-        // 3. Компилируем блок THEN
-        SAFE_RISKY_EXPRESSION(VismutCompiler_CompileStatement(ctx, at(idx)->condition.then), err);
-
-        // Если есть ELSE, нам нужен еще один прыжок (чтобы после THEN не провалиться в ELSE)
-        u32 jmp_end_idx = 0;
-        i1 has_else = !ASTNodeIdx_IsNone(at(idx)->condition.else_);
-
-        if (has_else) {
-            jmp_end_idx = RawVector_Count(&ctx->bytecode, VismutInstruction);
-            // Допустим, OP_JMP использует свободный формат (например, ABX, где A=0, BX=offset)
-            SAFE_RISKY_EXPRESSION(emit(ctx, VismutOpcode_ABX(OP_JMP, 0, 0)), err); // заглушка
-        }
-
-        // 4. Патчим первый прыжок (JMP_IF_FALSE)
-        // Теперь мы знаем, где начинается ELSE (или конец IF, если ELSE нет)
-        u32 else_start_idx = RawVector_Count(&ctx->bytecode, VismutInstruction);
-
-        VismutInstruction *instructions = (VismutInstruction *)ctx->bytecode.memory;
-        instructions[jmp_if_false_idx] =
-            VismutOpcode_ABX(OP_JMP_IF_FALSE, cond_reg, else_start_idx);
-
-        // 5. Компилируем блок ELSE (если он есть) и патчим JMP в конце THEN
-        if (has_else) {
-            SAFE_RISKY_EXPRESSION(VismutCompiler_CompileStatement(ctx, at(idx)->condition.else_),
+        ASTNodeIdx current_idx = idx;
+        while (1) {
+            u8 cond_reg;
+            SAFE_RISKY_EXPRESSION(VismutCompiler_CompileExpression(
+                                      ctx, at(current_idx)->condition.condition, &cond_reg),
                                   err);
 
-            u32 end_idx = RawVector_Count(&ctx->bytecode, VismutInstruction);
-            instructions[jmp_end_idx] = VismutOpcode_ABX(OP_JMP, 0, end_idx);
+            u32 jmp_if_false_idx = RawVector_Count(&ctx->bytecode, VismutInstruction);
+            SAFE_RISKY_EXPRESSION(
+                emit(ctx, VismutInstruction_MakeAsBx(OP_JUMP_IF_FALSE, cond_reg, 0)), err);
+
+            u8 before_then_reg = ctx->ctx.next_free_reg;
+            u8 then_reg;
+            SAFE_RISKY_EXPRESSION(
+                VismutCompiler_CompileExpression(ctx, at(current_idx)->condition.then, &then_reg),
+                err);
+
+            if (!result_allocated) {
+                if (then_reg >= before_then_reg) {
+                    result_reg = then_reg;
+                } else {
+                    result_reg = get_next_reg(ctx);
+                    SAFE_RISKY_EXPRESSION(
+                        emit(ctx, VismutInstruction_MakeAB(OP_MOVE, result_reg, then_reg)), err);
+                }
+                result_allocated = 1;
+            } else {
+                if (then_reg != result_reg) {
+                    SAFE_RISKY_EXPRESSION(
+                        emit(ctx, VismutInstruction_MakeAB(OP_MOVE, result_reg, then_reg)), err);
+                }
+            }
+
+            i1 has_else = !ASTNodeIdx_IsNone(at(current_idx)->condition.else_);
+            if (has_else) {
+                if (jump_ends_count < MAX_CHAIN_JUMPS) {
+                    jump_ends[jump_ends_count++] =
+                        RawVector_Count(&ctx->bytecode, VismutInstruction);
+                    SAFE_RISKY_EXPRESSION(emit(ctx, VismutInstruction_MakesAx(OP_JUMP, 0)), err);
+                }
+            }
+
+            u32 else_start_idx = RawVector_Count(&ctx->bytecode, VismutInstruction);
+            i16 false_offset = (i16)(else_start_idx - jmp_if_false_idx - 1);
+
+            VismutInstruction *instructions = (VismutInstruction *)ctx->bytecode.memory;
+            instructions[jmp_if_false_idx] =
+                VismutInstruction_MakeAsBx(OP_JUMP_IF_FALSE, cond_reg, false_offset);
+
+            if (has_else) {
+                ASTNode *else_node = at(at(current_idx)->condition.else_);
+
+                if (else_node->type == VISMUT_AST_CONDITION && jump_ends_count < MAX_CHAIN_JUMPS) {
+                    current_idx = at(current_idx)->condition.else_;
+                    continue;
+                } else {
+                    u8 else_reg = 0;
+                    SAFE_RISKY_EXPRESSION(VismutCompiler_CompileExpression(
+                                              ctx, at(current_idx)->condition.else_, &else_reg),
+                                          err);
+
+                    if (else_reg != result_reg) {
+                        SAFE_RISKY_EXPRESSION(
+                            emit(ctx, VismutInstruction_MakeAB(OP_MOVE, result_reg, else_reg)),
+                            err);
+                    }
+                    break;
+                }
+            } else {
+                break;
+            }
         }
 
-        break;
+        u32 end_idx = RawVector_Count(&ctx->bytecode, VismutInstruction);
+        VismutInstruction *instructions = (VismutInstruction *)ctx->bytecode.memory;
+
+        for (u32 i = 0; i < jump_ends_count; ++i) {
+            u32 jmp_idx = jump_ends[i];
+            i32 end_offset = (i32)(end_idx - jmp_idx - 1);
+            instructions[jmp_idx] = VismutInstruction_MakesAx(OP_JUMP, end_offset);
+        }
+
+        *out_reg = result_reg;
     }
+        return VISMUT_OK;
+
+    case VISMUT_AST_LOOP: {
+        u32 loop_start_idx = RawVector_Count(&ctx->bytecode, VismutInstruction);
+
+        u8 cond_reg;
+        SAFE_RISKY_EXPRESSION(
+            VismutCompiler_CompileExpression(ctx, at(idx)->loop.condition, &cond_reg), err);
+
+        u32 jmp_end_idx = RawVector_Count(&ctx->bytecode, VismutInstruction);
+        SAFE_RISKY_EXPRESSION(emit(ctx, VismutInstruction_MakeAsBx(OP_JUMP_IF_FALSE, cond_reg, 0)),
+                              err);
+
+        u8 body_reg;
+        SAFE_RISKY_EXPRESSION(VismutCompiler_CompileExpression(ctx, at(idx)->loop.body, &body_reg),
+                              err);
+
+        u32 jmp_back_idx = RawVector_Count(&ctx->bytecode, VismutInstruction);
+
+        i32 back_offset = (i32)loop_start_idx - (i32)jmp_back_idx - 1;
+        SAFE_RISKY_EXPRESSION(emit(ctx, VismutInstruction_MakesAx(OP_JUMP, back_offset)), err);
+
+        u32 loop_end_idx = RawVector_Count(&ctx->bytecode, VismutInstruction);
+
+        i16 end_offset = (i16)(loop_end_idx - jmp_end_idx - 1);
+
+        VismutInstruction *instructions = (VismutInstruction *)ctx->bytecode.memory;
+        instructions[jmp_end_idx] =
+            VismutInstruction_MakeAsBx(OP_JUMP_IF_FALSE, cond_reg, end_offset);
+
+        *out_reg = 0;
+    }
+        return VISMUT_OK;
+
+    case VISMUT_AST_ASSIGNMENT: {
+        u8 val_reg;
+        SAFE_RISKY_EXPRESSION(
+            VismutCompiler_CompileExpression(ctx, at(idx)->assignment.value, &val_reg), err);
+
+        ASTNodeIdx target_idx = at(idx)->assignment.target;
+        ASTNode *target_node = at(target_idx);
+
+        if (target_node->type == VISMUT_AST_IDENTIFIER) {
+            VismutSymbol *sym = target_node->identifier.resolved_symbol;
+
+            if (sym->kind == VISMUT_SYMBOL_GLOBAL_VAR) {
+                SAFE_RISKY_EXPRESSION(
+                    emit(ctx, VismutInstruction_MakeABx(OP_STORE_GLOBAL, val_reg,
+                                                        sym->as.global_var.global_index)),
+                    err);
+            } else if (sym->kind == VISMUT_SYMBOL_LOCAL_VAR) {
+                u8 local_reg = sym->as.local_var.register_index;
+                SAFE_RISKY_EXPRESSION(
+                    emit(ctx, VismutInstruction_MakeABC(OP_MOVE, local_reg, val_reg, 0)), err);
+            } else {
+                VismutErrorDetails details = {0};
+                VismutCompiler_SetErrorInfo(ctx, VISMUT_ERR_ASSIGN_RVALUE, at(idx)->pos, details);
+                return VISMUT_ERR_ASSIGN_RVALUE;
+            }
+        } else {
+            VismutErrorDetails details = {0};
+            VismutCompiler_SetErrorInfo(ctx, VISMUT_ERR_ASSIGN_RVALUE, at(idx)->pos, details);
+            return VISMUT_ERR_ASSIGN_RVALUE;
+        }
+
+        *out_reg = val_reg;
+    }
+        return VISMUT_OK;
 
     default:
         printf("%s\n", ASTNodeType_String(at(idx)->type));
@@ -456,9 +589,10 @@ VismutErrorType VismutCompiler_CompileStatement(VismutCompiler *ctx, const ASTNo
             if (sym->kind == VISMUT_SYMBOL_GLOBAL_VAR) {
                 sym->as.global_var.global_index = ctx->ctx.next_global_slot++;
 
-                SAFE_RISKY_EXPRESSION(emit(ctx, VismutOpcode_ABX(OP_STORE_GLOBAL, reg,
-                                                                 sym->as.global_var.global_index)),
-                                      err);
+                SAFE_RISKY_EXPRESSION(
+                    emit(ctx, VismutInstruction_MakeABx(OP_STORE_GLOBAL, reg,
+                                                        sym->as.global_var.global_index)),
+                    err);
                 ctx->ctx.next_free_reg = old_free_reg;
             } else if (sym->kind == VISMUT_SYMBOL_LOCAL_VAR) {
                 sym->as.local_var.register_index = reg;
@@ -486,7 +620,7 @@ VismutErrorType VismutCompiler_Compile(VismutCompiler *ctx) {
         SAFE_RISKY_EXPRESSION(VismutCompiler_CompileStatement(ctx, root_module_node), err);
     }
 
-    SAFE_RISKY_EXPRESSION(emit(ctx, VismutOpcode_None(OP_HALT)), err);
+    SAFE_RISKY_EXPRESSION(emit(ctx, VismutInstruction_MakeNone(OP_HALT)), err);
 
     const u32 funcs_count = RawVector_Count(&ctx->deffered_functions, DefferedFunction);
     DefferedFunction *funcs = (DefferedFunction *)ctx->deffered_functions.memory;
@@ -495,7 +629,7 @@ VismutErrorType VismutCompiler_Compile(VismutCompiler *ctx) {
         DefferedFunction def_fn = funcs[i];
 
         ASTNode *fn_node = at(def_fn.node_idx);
-        VismutSymbol *fn_symbol = fn_node->fn_declaration.resolved_symbol;
+        VismutSymbol *fn_symbol = fn_node->identifier.resolved_symbol;
 
         const u32 args_count = fn_node->fn_declaration.signature->function.param_count;
 
@@ -509,7 +643,7 @@ VismutErrorType VismutCompiler_Compile(VismutCompiler *ctx) {
         SAFE_RISKY_EXPRESSION(VismutCompiler_CompileExpression(ctx, current_stmt, &reg), err);
 
         fn_symbol->as.func.registers_needed = ctx->ctx.next_free_reg;
-        SAFE_RISKY_EXPRESSION(emit(ctx, VismutOpcode_A(OP_RET, reg)), err);
+        SAFE_RISKY_EXPRESSION(emit(ctx, VismutInstruction_MakeA(OP_RET, reg)), err);
     }
 
     const u32 patches_count = RawVector_Count(&ctx->call_patches, CallPatch);
@@ -517,22 +651,17 @@ VismutErrorType VismutCompiler_Compile(VismutCompiler *ctx) {
     VismutInstruction *instructions = (VismutInstruction *)ctx->bytecode.memory;
 
     for (u32 i = 0; i < patches_count; ++i) {
-        CallPatch patch = patches[i];
-        u32 patch_idx = patch.instruction_index;
+        const CallPatch patch = patches[i];
+        const u32 patch_idx = patch.instruction_index;
+        const VismutInstruction base = instructions[patch_idx];
 
-        VismutWideInstruction old_wide =
-            VismutOpCode_MakeWide(instructions[patch_idx], instructions[patch_idx + 1]);
+        const u32 real_offset = patch.target_func->as.func.bytecode_offset;
+        const u8 regs_needed = patch.target_func->as.func.registers_needed;
 
-        VismutDecodedABCWide decoded = VismutInstruction_DecodeABCWide(old_wide);
-
-        u32 real_offset = patch.target_func->as.func.bytecode_offset;
-        u8 regs_needed = patch.target_func->as.func.registers_needed;
-
-        VismutWideInstruction patched_wide =
-            VismutOpcode_ABC_WIDE(decoded.type, decoded.a, decoded.b, regs_needed, real_offset);
-
-        instructions[patch_idx] = (u32)(patched_wide & 0xFFFFFFFF);
-        instructions[patch_idx + 1] = (u32)(patched_wide >> 32);
+        instructions[patch_idx] =
+            VismutInstruction_MakeABC(VismutInstruction_Opcode(base), VismutInstruction_A(base),
+                                      VismutInstruction_B(base), regs_needed);
+        instructions[patch_idx + 1] = real_offset;
     }
 
     return VISMUT_OK;

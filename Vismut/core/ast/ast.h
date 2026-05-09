@@ -141,7 +141,7 @@ ASTNode ASTNode_CreateModule(ASTNodeIdx first_statement);
 
 ASTNode ASTNode_CreateExpression(Position pos, const VismutType *type, ASTNodeIdx expr);
 
-ASTNode ASTNode_CreateDeclaration(Position pos, ASTNodeIdx decl, int is_export);
+ASTNode ASTNode_CreateDeclaration(Position pos, ASTNodeIdx decl, i1 is_export);
 
 ASTNode ASTNode_CreateLiteral(Position pos, const VismutType *type, VismutSimpleValue value);
 
@@ -165,17 +165,17 @@ ASTNode ASTNode_CreateTypeCast(Position pos, const VismutType *from_type, const 
                                ASTNodeIdx argument);
 
 ASTNode ASTNode_CreateFnCall(Position pos, StringView name, const VismutType *restrict fn_signature,
-                             ASTNodeIdx *restrict arguments, const u64 arguments_count);
+                             ASTNodeIdx *restrict arguments, u64 arguments_count);
 
 ASTNode ASTNode_CreateVarDeclaration(Position pos, StringView name, const VismutType *type,
-                                     ASTNodeIdx init, int is_mutable);
+                                     ASTNodeIdx init, i1 is_mutable);
 
 ASTNode ASTNode_CreateBlock(Position pos, ASTNodeIdx first_statement, const VismutType *type);
 
-ASTNode ASTNode_CreateFnDeclaration(const Position pos, StringView name,
+ASTNode ASTNode_CreateFnDeclaration(Position pos, StringView name,
                                     const VismutType *restrict signature,
                                     StringView *restrict param_names, VismutSymbol *resolved_symbol,
-                                    const ASTNodeIdx body);
+                                    ASTNodeIdx body);
 
 ASTNode ASTNode_CreateReturn(Position pos, ASTNodeIdx expression);
 

@@ -6,10 +6,10 @@ typedef enum {
     OP_FMT_NONE,     // No regs
     OP_FMT_A,        // reg A
     OP_FMT_sAx,      // signed A-extended
-    OP_FMT_AsBx,     // reg A, signed B-extended
     OP_FMT_AB,       // reg A, reg B
-    OP_FMT_ABC,      // reg A, reg B, reg C
     OP_FMT_ABx,      // reg A, unsigned B-extended
+    OP_FMT_AsBx,     // reg A, signed B-extended
+    OP_FMT_ABC,      // reg A, reg B, reg C
     OP_FMT_ABC_WIDE, // reg A, reg B, reg C, u32
 } OpcodeFormat;
 
@@ -92,80 +92,72 @@ OpcodeFormat VismutOpcode_GetFormat(VismutOpcode type);
 typedef u32 VismutInstruction;
 typedef u64 VismutWideInstruction;
 
-typedef struct {
-    VismutOpcode type;
-    union {
-        struct {
-            u8 a;
-        } A;
+attribute_const static inline VismutInstruction
+VismutInstruction_MakeNone(const VismutOpcode opcode) {
+    return (VismutInstruction)(opcode & 0xFF);
+}
 
-        struct {
-            u8 a;
-            u8 b;
-        } AB;
+attribute_const static inline VismutInstruction VismutInstruction_MakeA(const VismutOpcode opcode,
+                                                                        const u8 a) {
+    return (VismutInstruction)((opcode & 0xFF) | ((u32)a << 8));
+}
 
-        struct {
-            u8 a;
-            u8 b;
-            u8 c;
-        } ABC;
+attribute_const static inline VismutInstruction VismutInstruction_MakeAB(const VismutOpcode opcode,
+                                                                         const u8 a, const u8 b) {
+    return (VismutInstruction)((opcode & 0xFF) | ((u32)a << 8) | ((u32)b << 16));
+}
 
-        struct {
-            u8 a;
-            u16 bx;
-        } ABx;
+attribute_const static inline VismutInstruction
+VismutInstruction_MakeABC(const VismutOpcode opcode, const u8 a, const u8 b, const u8 c) {
+    return (VismutInstruction)((opcode & 0xFF) | ((u32)a << 8) | ((u32)b << 16) | ((u32)c << 24));
+}
 
-        struct {
-            u8 a;
-            i16 bx;
-        } AsBx;
-    } as;
-} VismutInstructionDecoded;
+attribute_const static inline VismutInstruction VismutInstruction_MakeABx(const VismutOpcode opcode,
+                                                                          const u8 a, const u16 b) {
+    return (VismutInstruction)((opcode & 0xFF) | ((u32)a << 8) | ((u32)b << 16));
+}
 
-typedef struct {
-    VismutInstructionDecoded base;
-    u32 extra;
-} VismutWideInstructionDecoded;
+attribute_const static inline VismutInstruction
+VismutInstruction_MakeAsBx(const VismutOpcode opcode, const u8 a, const i16 b) {
+    return (VismutInstruction)((opcode & 0xFF) | ((u32)a << 8) | (((u32)b & 0xFFFF) << 16));
+}
 
-typedef struct {
-    VismutOpcode type;
-    u8 a;
-    u8 b;
-    u8 c;
-} VismutDecodedABC;
+attribute_const static inline VismutInstruction VismutInstruction_MakesAx(const VismutOpcode opcode,
+                                                                          const i32 a) {
+    return (VismutInstruction)((opcode & 0xFF) | (((u32)a & 0xFFFFFF) << 8));
+}
 
-typedef struct {
-    VismutOpcode type;
-    u8 a;
-    u16 bx;
-} VismutDecodedABX;
+attribute_const static inline VismutInstruction
+VismutInstruction_MakeWide(const VismutInstruction base, const u32 extra) {
+    return ((u64)extra << 32) | (u32)base;
+}
 
-typedef struct {
-    VismutOpcode type;
-    u8 a;
-    u8 b;
-    u8 c;
-    u32 extra;
-} VismutDecodedABCWide;
+attribute_const static inline u8 VismutInstruction_Opcode(const VismutInstruction instr) {
+    return (u8)(instr & 0xFF);
+}
 
-attribute_const VismutInstruction VismutOpcode_None(VismutOpcode type);
-attribute_const VismutInstruction VismutOpcode_A(VismutOpcode type, u8 a);
-attribute_const VismutInstruction VismutOpcode_sAx(VismutOpcode type, i16 a);
-attribute_const VismutInstruction VismutOpcode_AB(VismutOpcode type, u8 a, u8 b);
-attribute_const VismutInstruction VismutOpcode_ABC(VismutOpcode type, u8 a, u8 b, u8 c);
-attribute_const VismutInstruction VismutOpcode_ABx(VismutOpcode type, u8 a, u16 bx);
-attribute_const VismutInstruction VismutOpcode_AsBx(VismutOpcode type, i16 a, u16 bx);
-attribute_const VismutWideInstruction VismutOpcode_ABC_WIDE(VismutOpcode type, u8 a, u8 b, u8 c,
-                                                            u32 extra);
+attribute_const static inline u8 VismutInstruction_A(const VismutInstruction instr) {
+    return (u8)((instr >> 8) & 0xFF);
+}
 
-attribute_const VismutWideInstruction VismutOpCode_MakeWide(VismutInstruction a,
-                                                            VismutInstruction b);
+attribute_const static inline u8 VismutInstruction_B(const VismutInstruction instr) {
+    return (u8)((instr >> 16) & 0xFF);
+}
 
-attribute_const VismutOpcode VismutInstruction_DecodeType(u32 inst);
-attribute_const VismutDecodedABC VismutInstruction_DecodeABC(u32 inst);
-attribute_const VismutDecodedABX VismutInstruction_DecodeABX(u32 inst);
-attribute_const VismutDecodedABCWide
-VismutInstruction_DecodeABCWide(VismutWideInstruction wide_inst);
-attribute_const u32 VismutInstruction_GetExtra(VismutWideInstruction wide_inst);
+attribute_const static inline u8 VismutInstruction_C(const VismutInstruction instr) {
+    return (u8)((instr >> 24) & 0xFF);
+}
+
+attribute_const static inline u16 VismutInstruction_Bx(const VismutInstruction instr) {
+    return (u16)((instr >> 16) & 0xFFFF);
+}
+
+attribute_const static inline i32 VismutInstruction_sBx(const VismutInstruction instr) {
+    return ((i32)instr) >> 16;
+}
+
+attribute_const static inline i32 VismutInstruction_sAx(const VismutInstruction instr) {
+    return ((i32)instr) >> 8;
+}
 
 #endif

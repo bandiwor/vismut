@@ -70,7 +70,7 @@ ASTNode ASTNode_CreateExpression(const Position pos, const VismutType *type,
                      }};
 }
 
-ASTNode ASTNode_CreateDeclaration(const Position pos, const ASTNodeIdx decl, const int is_export) {
+ASTNode ASTNode_CreateDeclaration(const Position pos, const ASTNodeIdx decl, const i1 is_export) {
     return (ASTNode){.type = VISMUT_AST_DECLARATION,
                      .pos = pos,
                      .declaration = {
@@ -80,7 +80,8 @@ ASTNode ASTNode_CreateDeclaration(const Position pos, const ASTNodeIdx decl, con
                      }};
 }
 
-ASTNode ASTNode_CreateLiteral(Position pos, const VismutType *type, const VismutSimpleValue value) {
+ASTNode ASTNode_CreateLiteral(const Position pos, const VismutType *type,
+                              const VismutSimpleValue value) {
     return (ASTNode){
         .type = VISMUT_AST_LITERAL,
         .pos = pos,
@@ -164,7 +165,7 @@ ASTNode ASTNode_CreateTypeCast(const Position pos, const VismutType *from_type,
 }
 
 ASTNode ASTNode_CreateVarDeclaration(const Position pos, StringView name, const VismutType *type,
-                                     const ASTNodeIdx init, const int is_mutable) {
+                                     const ASTNodeIdx init, const i1 is_mutable) {
     return (ASTNode){
         .type = VISMUT_AST_VAR_DECLARATION,
         .pos = pos,
@@ -293,7 +294,7 @@ ASTNode ASTNode_CreateDot(const Position pos, const VismutType *type, const ASTN
     };
 }
 
-ASTNode ASTNode_CreateCall(Position pos, const VismutType *type, const ASTNodeIdx object,
+ASTNode ASTNode_CreateCall(const Position pos, const VismutType *type, const ASTNodeIdx object,
                            ASTNodeIdx *restrict arguments, const u32 arguments_count) {
     return (ASTNode){
         .type = VISMUT_AST_CALL,

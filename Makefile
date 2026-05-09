@@ -1,4 +1,4 @@
-CC = clang
+CC = gcc
 CFLAGS = -Wall -Wextra -pedantic
 DEPFLAGS = -MMD -MP
 LIBS = -lm
@@ -30,7 +30,7 @@ DEPS = $(RELEASE_OBJS:.o=.d) $(DEBUG_OBJS:.o=.d) $(TEST_REL_OBJS:.o=.d) $(TEST_D
 
 all: $(RELEASE_DIR)/$(TARGET_NAME)
 
-$(RELEASE_DIR)/$(TARGET_NAME): CFLAGS += -O3 -march=native -flto=auto 
+$(RELEASE_DIR)/$(TARGET_NAME): CFLAGS += -O3 -march=native -flto=auto
 $(RELEASE_DIR)/$(TARGET_NAME): $(RELEASE_OBJS)
 	$(CC) $(CFLAGS) $^ -s -o $@ $(LIBS)
 

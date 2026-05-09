@@ -76,9 +76,9 @@ VismutErrorType VismutCompileContext_Compile(VismutCompileContext *ctx) {
     SAFE_RISKY_EXPRESSION(VismutCompiler_Init(&compiler, &details), err);
     SAFE_RISKY_EXPRESSION(VismutCompiler_Compile(&compiler), err);
 
-    InstructionsPrinter printer =
-        InstructionsPrinter_Create(RawVector_Elements(&compiler.bytecode, VismutInstruction),
-                                   RawVector_Count(&compiler.bytecode, VismutInstruction));
+    InstructionsPrinter printer = InstructionsPrinter_Create(
+        RawVector_Elements(&compiler.bytecode, VismutInstruction),
+        RawVector_Count(&compiler.bytecode, VismutInstruction), &ctx->constant_pool);
 
     InstructionsPrinter_Print(&printer);
 

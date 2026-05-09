@@ -2,7 +2,7 @@
   {
     "file": "Vismut/core/io/file_reader.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -27,7 +27,7 @@
   {
     "file": "Vismut/core/errors/errors.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -52,7 +52,7 @@
   {
     "file": "Vismut/core/tokenizer/token.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -77,7 +77,7 @@
   {
     "file": "Vismut/core/tokenizer/tokenizer.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -102,7 +102,7 @@
   {
     "file": "Vismut/core/memory/memory.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -125,59 +125,9 @@
     "output": "build/debug/Vismut/core/memory/memory.o"
   },
   {
-    "file": "Vismut/core/memory/raw_vector.c",
-    "arguments": [
-      "/usr/bin/clang",
-      "-Wall",
-      "-Wextra",
-      "-pedantic",
-      "-g3",
-      "-O0",
-      "-DDEBUG",
-      "-DVISMUT_DEBUG",
-      "-fsanitize=address",
-      "-MMD",
-      "-MP",
-      "-g3",
-      "-O0",
-      "-DDEBUG",
-      "-c",
-      "Vismut/core/memory/raw_vector.c",
-      "-o",
-      "build/debug/Vismut/core/memory/raw_vector.o"
-    ],
-    "directory": "/home/kira/Projects/VismutC",
-    "output": "build/debug/Vismut/core/memory/raw_vector.o"
-  },
-  {
-    "file": "Vismut/core/memory/arena.c",
-    "arguments": [
-      "/usr/bin/clang",
-      "-Wall",
-      "-Wextra",
-      "-pedantic",
-      "-g3",
-      "-O0",
-      "-DDEBUG",
-      "-DVISMUT_DEBUG",
-      "-fsanitize=address",
-      "-MMD",
-      "-MP",
-      "-g3",
-      "-O0",
-      "-DDEBUG",
-      "-c",
-      "Vismut/core/memory/arena.c",
-      "-o",
-      "build/debug/Vismut/core/memory/arena.o"
-    ],
-    "directory": "/home/kira/Projects/VismutC",
-    "output": "build/debug/Vismut/core/memory/arena.o"
-  },
-  {
     "file": "Vismut/core/memory/type_context.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -200,9 +150,9 @@
     "output": "build/debug/Vismut/core/memory/type_context.o"
   },
   {
-    "file": "Vismut/core/memory/symbol_table.c",
+    "file": "Vismut/core/memory/raw_vector.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -217,17 +167,17 @@
       "-O0",
       "-DDEBUG",
       "-c",
-      "Vismut/core/memory/symbol_table.c",
+      "Vismut/core/memory/raw_vector.c",
       "-o",
-      "build/debug/Vismut/core/memory/symbol_table.o"
+      "build/debug/Vismut/core/memory/raw_vector.o"
     ],
     "directory": "/home/kira/Projects/VismutC",
-    "output": "build/debug/Vismut/core/memory/symbol_table.o"
+    "output": "build/debug/Vismut/core/memory/raw_vector.o"
   },
   {
     "file": "Vismut/core/memory/constant_pool.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -250,9 +200,84 @@
     "output": "build/debug/Vismut/core/memory/constant_pool.o"
   },
   {
+    "file": "Vismut/core/memory/modules_table.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-Wextra",
+      "-pedantic",
+      "-g3",
+      "-O0",
+      "-DDEBUG",
+      "-DVISMUT_DEBUG",
+      "-fsanitize=address",
+      "-MMD",
+      "-MP",
+      "-g3",
+      "-O0",
+      "-DDEBUG",
+      "-c",
+      "Vismut/core/memory/modules_table.c",
+      "-o",
+      "build/debug/Vismut/core/memory/modules_table.o"
+    ],
+    "directory": "/home/kira/Projects/VismutC",
+    "output": "build/debug/Vismut/core/memory/modules_table.o"
+  },
+  {
+    "file": "Vismut/core/memory/arena.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-Wextra",
+      "-pedantic",
+      "-g3",
+      "-O0",
+      "-DDEBUG",
+      "-DVISMUT_DEBUG",
+      "-fsanitize=address",
+      "-MMD",
+      "-MP",
+      "-g3",
+      "-O0",
+      "-DDEBUG",
+      "-c",
+      "Vismut/core/memory/arena.c",
+      "-o",
+      "build/debug/Vismut/core/memory/arena.o"
+    ],
+    "directory": "/home/kira/Projects/VismutC",
+    "output": "build/debug/Vismut/core/memory/arena.o"
+  },
+  {
+    "file": "Vismut/core/memory/symbol_table.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-Wextra",
+      "-pedantic",
+      "-g3",
+      "-O0",
+      "-DDEBUG",
+      "-DVISMUT_DEBUG",
+      "-fsanitize=address",
+      "-MMD",
+      "-MP",
+      "-g3",
+      "-O0",
+      "-DDEBUG",
+      "-c",
+      "Vismut/core/memory/symbol_table.c",
+      "-o",
+      "build/debug/Vismut/core/memory/symbol_table.o"
+    ],
+    "directory": "/home/kira/Projects/VismutC",
+    "output": "build/debug/Vismut/core/memory/symbol_table.o"
+  },
+  {
     "file": "Vismut/core/convert/str_to_int.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -277,7 +302,7 @@
   {
     "file": "Vismut/core/convert/literal.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -302,7 +327,7 @@
   {
     "file": "Vismut/core/convert/str_to_double.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -325,34 +350,9 @@
     "output": "build/debug/Vismut/core/convert/str_to_double.o"
   },
   {
-    "file": "Vismut/core/utils/ast_utils.c",
-    "arguments": [
-      "/usr/bin/clang",
-      "-Wall",
-      "-Wextra",
-      "-pedantic",
-      "-g3",
-      "-O0",
-      "-DDEBUG",
-      "-DVISMUT_DEBUG",
-      "-fsanitize=address",
-      "-MMD",
-      "-MP",
-      "-g3",
-      "-O0",
-      "-DDEBUG",
-      "-c",
-      "Vismut/core/utils/ast_utils.c",
-      "-o",
-      "build/debug/Vismut/core/utils/ast_utils.o"
-    ],
-    "directory": "/home/kira/Projects/VismutC",
-    "output": "build/debug/Vismut/core/utils/ast_utils.o"
-  },
-  {
     "file": "Vismut/core/utils/types.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -377,7 +377,7 @@
   {
     "file": "Vismut/core/utils/suffix.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -402,7 +402,7 @@
   {
     "file": "Vismut/core/utils/overflow.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -425,9 +425,9 @@
     "output": "build/debug/Vismut/core/utils/overflow.o"
   },
   {
-    "file": "Vismut/core/ast/ast_builder.c",
+    "file": "Vismut/core/utils/ast_utils.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -442,17 +442,17 @@
       "-O0",
       "-DDEBUG",
       "-c",
-      "Vismut/core/ast/ast_builder.c",
+      "Vismut/core/utils/ast_utils.c",
       "-o",
-      "build/debug/Vismut/core/ast/ast_builder.o"
+      "build/debug/Vismut/core/utils/ast_utils.o"
     ],
     "directory": "/home/kira/Projects/VismutC",
-    "output": "build/debug/Vismut/core/ast/ast_builder.o"
+    "output": "build/debug/Vismut/core/utils/ast_utils.o"
   },
   {
     "file": "Vismut/core/ast/type.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -477,7 +477,7 @@
   {
     "file": "Vismut/core/ast/ast_type.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -500,9 +500,34 @@
     "output": "build/debug/Vismut/core/ast/ast_type.o"
   },
   {
+    "file": "Vismut/core/ast/ast_builder.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-Wextra",
+      "-pedantic",
+      "-g3",
+      "-O0",
+      "-DDEBUG",
+      "-DVISMUT_DEBUG",
+      "-fsanitize=address",
+      "-MMD",
+      "-MP",
+      "-g3",
+      "-O0",
+      "-DDEBUG",
+      "-c",
+      "Vismut/core/ast/ast_builder.c",
+      "-o",
+      "build/debug/Vismut/core/ast/ast_builder.o"
+    ],
+    "directory": "/home/kira/Projects/VismutC",
+    "output": "build/debug/Vismut/core/ast/ast_builder.o"
+  },
+  {
     "file": "Vismut/core/ast/scope.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -527,7 +552,7 @@
   {
     "file": "Vismut/core/ast/ast.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -552,7 +577,7 @@
   {
     "file": "Vismut/core/analyze/ast_typing.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -577,7 +602,7 @@
   {
     "file": "Vismut/core/analyze/ast_analyze.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -602,7 +627,7 @@
   {
     "file": "Vismut/core/parser/ast_parser.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -625,34 +650,9 @@
     "output": "build/debug/Vismut/core/parser/ast_parser.o"
   },
   {
-    "file": "Vismut/core/printer/ast_printer.c",
-    "arguments": [
-      "/usr/bin/clang",
-      "-Wall",
-      "-Wextra",
-      "-pedantic",
-      "-g3",
-      "-O0",
-      "-DDEBUG",
-      "-DVISMUT_DEBUG",
-      "-fsanitize=address",
-      "-MMD",
-      "-MP",
-      "-g3",
-      "-O0",
-      "-DDEBUG",
-      "-c",
-      "Vismut/core/printer/ast_printer.c",
-      "-o",
-      "build/debug/Vismut/core/printer/ast_printer.o"
-    ],
-    "directory": "/home/kira/Projects/VismutC",
-    "output": "build/debug/Vismut/core/printer/ast_printer.o"
-  },
-  {
     "file": "Vismut/core/printer/error_printer.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -675,9 +675,34 @@
     "output": "build/debug/Vismut/core/printer/error_printer.o"
   },
   {
+    "file": "Vismut/core/printer/ast_printer.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-Wextra",
+      "-pedantic",
+      "-g3",
+      "-O0",
+      "-DDEBUG",
+      "-DVISMUT_DEBUG",
+      "-fsanitize=address",
+      "-MMD",
+      "-MP",
+      "-g3",
+      "-O0",
+      "-DDEBUG",
+      "-c",
+      "Vismut/core/printer/ast_printer.c",
+      "-o",
+      "build/debug/Vismut/core/printer/ast_printer.o"
+    ],
+    "directory": "/home/kira/Projects/VismutC",
+    "output": "build/debug/Vismut/core/printer/ast_printer.o"
+  },
+  {
     "file": "Vismut/core/printer/instructions_printer.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -702,7 +727,7 @@
   {
     "file": "Vismut/core/types.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -727,7 +752,7 @@
   {
     "file": "Vismut/core/dumper/ast_dumper.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -752,7 +777,7 @@
   {
     "file": "Vismut/core/compiler/binary.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -775,34 +800,9 @@
     "output": "build/debug/Vismut/core/compiler/binary.o"
   },
   {
-    "file": "Vismut/core/compiler/op_codes.c",
-    "arguments": [
-      "/usr/bin/clang",
-      "-Wall",
-      "-Wextra",
-      "-pedantic",
-      "-g3",
-      "-O0",
-      "-DDEBUG",
-      "-DVISMUT_DEBUG",
-      "-fsanitize=address",
-      "-MMD",
-      "-MP",
-      "-g3",
-      "-O0",
-      "-DDEBUG",
-      "-c",
-      "Vismut/core/compiler/op_codes.c",
-      "-o",
-      "build/debug/Vismut/core/compiler/op_codes.o"
-    ],
-    "directory": "/home/kira/Projects/VismutC",
-    "output": "build/debug/Vismut/core/compiler/op_codes.o"
-  },
-  {
     "file": "Vismut/core/compiler/unary.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -825,9 +825,34 @@
     "output": "build/debug/Vismut/core/compiler/unary.o"
   },
   {
+    "file": "Vismut/core/compiler/op_codes.c",
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-Wextra",
+      "-pedantic",
+      "-g3",
+      "-O0",
+      "-DDEBUG",
+      "-DVISMUT_DEBUG",
+      "-fsanitize=address",
+      "-MMD",
+      "-MP",
+      "-g3",
+      "-O0",
+      "-DDEBUG",
+      "-c",
+      "Vismut/core/compiler/op_codes.c",
+      "-o",
+      "build/debug/Vismut/core/compiler/op_codes.o"
+    ],
+    "directory": "/home/kira/Projects/VismutC",
+    "output": "build/debug/Vismut/core/compiler/op_codes.o"
+  },
+  {
     "file": "Vismut/core/compiler/compiler.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -852,7 +877,7 @@
   {
     "file": "Vismut/args/parse_args.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -877,7 +902,7 @@
   {
     "file": "Vismut/compile/compile.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -902,7 +927,7 @@
   {
     "file": "Vismut/compile/compile_context.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",
@@ -927,7 +952,7 @@
   {
     "file": "main.c",
     "arguments": [
-      "/usr/bin/clang",
+      "/usr/bin/gcc",
       "-Wall",
       "-Wextra",
       "-pedantic",

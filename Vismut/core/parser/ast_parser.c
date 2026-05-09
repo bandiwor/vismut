@@ -413,10 +413,15 @@ ASTParser_ParseFunctionDeclaration(ASTParser *restrict parser, ASTNodeIdx *restr
         return err;
     }
 
+    ASTNodeIdx fn_decl_idx;
     err = ASTParser_PushNode(parser,
                              ASTNode_CreateFnDeclaration(pos, name, signature, heap_param_names,
                                                          function_symbol, body_idx),
-                             out_idx, &details);
+                             &fn_decl_idx, &details);
+
+    ASTParser_NodeAt(parser, fn_decl_idx)->fn_declaration.resolved_symbol = function_symbol;
+    *out_idx = fn_decl_idx;
+
     if (err != VISMUT_OK) {
         ASTParser_SetErrorInfo(parser, err, ASTParser_Peek(parser).position, details);
         return err;
